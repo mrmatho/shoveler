@@ -1,0 +1,35 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "shoveler"
+version = "0.1.0"
+description = "A minimal desktop SQL workbench for DuckDB"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+keywords = ["duckdb", "sql", "workbench", "education"]
+dependencies = [
+    "PySide6>=6.6",
+    "duckdb>=0.10",
+]
+
+# gui-scripts suppresses the Windows console window; use this instead of scripts
+[project.gui-scripts]
+shoveler = "shoveler.__main__:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/shoveler"]
+
+# dependency-groups are uv/PEP 735 dev-only deps.
+# They are NOT published to PyPI — use [project.optional-dependencies] for that.
+# Install with: uv sync  (dev group is included by default)
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "pyinstaller>=6.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

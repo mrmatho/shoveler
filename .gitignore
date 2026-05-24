@@ -1,0 +1,28 @@
+# Build artifacts
+dist/
+build/
+*.egg-info/
+__pycache__/
+*.py[cod]
+*.pyo
+
+# PyInstaller output — commit the .spec file, not the output
+dist/
+build/
+
+# uv — commit uv.lock to the repo, ignore the venv
+.venv/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
