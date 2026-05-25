@@ -1,6 +1,11 @@
 import sys
 from PySide6.QtWidgets import QApplication
-from .main_window import MainWindow
+
+try:
+    from .main_window import MainWindow
+except ImportError:
+    # PyInstaller may execute this file as a top-level script during startup.
+    from shoveler.main_window import MainWindow
 
 
 def main():

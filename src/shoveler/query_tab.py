@@ -14,7 +14,7 @@ from .results_panel import ResultsPanel
 class QueryTab(QWidget):
     run_requested = Signal(str)  # emits SQL string to main window
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, syntax_highlighting_enabled: bool = True):
         super().__init__(parent)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(4, 4, 4, 4)
@@ -38,6 +38,7 @@ class QueryTab(QWidget):
         splitter = QSplitter(Qt.Orientation.Vertical)
 
         self.editor = SqlEditor()
+        self.editor.set_syntax_highlighting_enabled(syntax_highlighting_enabled)
         self.editor.run_requested.connect(self._on_run)
         splitter.addWidget(self.editor)
 
@@ -62,3 +63,6 @@ class QueryTab(QWidget):
             self.results.show_results(
                 result["columns"], result["rows"], result["elapsed"]
             )
+
+    def set_syntax_highlighting_enabled(self, enabled: bool):
+        self.editor.set_syntax_highlighting_enabled(enabled)
