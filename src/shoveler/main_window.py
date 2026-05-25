@@ -7,7 +7,8 @@ from PySide6.QtWidgets import (
     QPushButton,
     QMessageBox,
 )
-from PySide6.QtCore import Qt
+from PySide6.QtGui import QAction
+from PySide6.QtCore import QSettings, Qt
 
 from .db import Database
 from .db_status_widget import DatabaseStatusWidget
@@ -16,13 +17,25 @@ from .query_tab import QueryTab
 
 
 class MainWindow(QMainWindow):
+    _SYNTAX_HIGHLIGHTING_KEY = "editor/syntax_highlighting_enabled"
+
     def __init__(self):
         super().__init__()
         self.db = Database()
-        self.setWindowTitle("DuckDB Workbench")
+        self.settings = QSettings(
+            QSettings.Format.IniFormat,
+            QSettings.Scope.UserScope,
+            "mrmatho",
+            "shoveler",
+        )
+        self.syntax_highlighting_enabled = self._read_bool_setting(
+            self._SYNTAX_HIGHLIGHTING_KEY, True
+        )
+        self.setWindowTitle("Shoveler: DuckDB Workbench")
         self.resize(1200, 720)
 
         self._build_ui()
+        self._build_menu()
         self._connect_signals()
 
     # ── UI construction ─────────────────────────────────────────────────────
@@ -71,17 +84,54 @@ class MainWindow(QMainWindow):
         # Start with one blank query tab
         self._add_tab()
 
+    def _build_menu(self):
+        view_menu = self.menuBar().addMenu("&View")
+
+        self.syntax_highlighting_action = QAction("Syntax highlighting", self)
+        self.syntax_highlighting_action.setCheckable(True)
+        self.syntax_highlighting_action.setChecked(self.syntax_highlighting_enabled)
+        self.syntax_highlighting_action.toggled.connect(
+            self._set_syntax_highlighting_enabled
+        )
+        view_menu.addAction(self.syntax_highlighting_action)
+
     def _connect_signals(self):
         self.db_status.file_opened.connect(self._open_file)
         self.db_status.memory_requested.connect(self._new_memory)
         self.db_status.checkpoint_requested.connect(self._checkpoint)
         self.schema_panel.table_double_clicked.connect(self._insert_table_name)
 
+    def _read_bool_setting(self, key: str, default: bool) -> bool:
+        value = self.settings.value(key, default)
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, str):
+            normalized = value.strip().lower()
+            if normalized in {"1", "true", "yes", "on"}:
+                return True
+            if normalized in {"0", "false", "no", "off"}:
+                return False
+        return bool(value)
+
+    def _set_syntax_highlighting_enabled(self, enabled: bool):
+        self.syntax_highlighting_enabled = bool(enabled)
+        self.settings.setValue(
+            self._SYNTAX_HIGHLIGHTING_KEY,
+            self.syntax_highlighting_enabled,
+        )
+        self.settings.sync()
+        for index in range(self.tab_widget.count()):
+            tab = self.tab_widget.widget(index)
+            if isinstance(tab, QueryTab):
+                tab.set_syntax_highlighting_enabled(self.syntax_highlighting_enabled)
+        state = "enabled" if self.syntax_highlighting_enabled else "disabled"
+        self.statusBar().showMessage(f"Syntax highlighting {state}", 2000)
+
     # ── Tab management ──────────────────────────────────────────────────────
 
     def _add_tab(self) -> QueryTab:
         n = self.tab_widget.count() + 1
-        tab = QueryTab()
+        tab = QueryTab(syntax_highlighting_enabled=self.syntax_highlighting_enabled)
         tab.run_requested.connect(self._run_query)
         idx = self.tab_widget.addTab(tab, f"Query {n}")
         self.tab_widget.setCurrentIndex(idx)

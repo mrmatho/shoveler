@@ -4,8 +4,8 @@ A minimal desktop SQL workbench for DuckDB, built with Python and PySide6.
 
 ## Setup (uv)
 
-```
-git clone https://github.com/yourname/shoveler
+```shell
+git clone https://github.com/mrmatho/shoveler
 cd shoveler
 uv sync
 ```
@@ -15,19 +15,19 @@ and respects `uv.lock` if it exists. Run it again after pulling changes.
 
 ## Running
 
-```
+```shell
 uv run python -m shoveler
 ```
 
 ## Testing
 
-```
+```shell
 uv run pytest
 ```
 
 ## Managing dependencies
 
-```
+```shell
 uv add somepackage              # add a runtime dependency
 uv add --dev somepackage        # add to the dev group (not published to PyPI)
 uv remove somepackage           # remove a dependency
@@ -45,6 +45,7 @@ Commit `uv.lock` to the repository. It pins exact versions for reproducible inst
 - **F5 or Ctrl+Enter** — run query
 - Select part of your SQL to run only that selection
 - Double-click a table name in the schema panel to insert it into the editor
+- **View > Syntax highlighting** — toggle SQL highlighting on or off; enabled by default and remembered between launches
 
 ## Building a standalone Windows executable
 
@@ -52,7 +53,7 @@ The project includes `shoveler.spec` with the correct PyInstaller
 configuration. Use this rather than running `pyinstaller` with flags directly —
 the spec handles a non-obvious issue with DuckDB's compiled extension.
 
-```
+```shell
 uv run pyinstaller shoveler.spec
 ```
 
@@ -70,19 +71,10 @@ uses `collect_all('duckdb')` which handles this correctly. If you ever regenerat
 the spec from scratch, make sure this is included or the packaged app will fail
 to start.
 
-## Publishing to PyPI
-
-Check that `shoveler` is available: https://pypi.org/project/shoveler/
-
-```
-uv build
-uv publish
-```
-
 ## Extending
 
-| Feature             | Where to add it                                                            |
-|---------------------|----------------------------------------------------------------------------|
-| Syntax highlighting | Subclass `QSyntaxHighlighter`, attach to `SqlEditor.document()`           |
-| More export formats | Add menu items in `ResultsPanel._show_export_menu()` — raw data is in `_last_rows` / `_last_columns` |
-| Save in-memory to file | Add `Database.export_to_file(path)` using DuckDB's `EXPORT DATABASE`   |
+|Feature|Where to add it|
+|---|---|
+|Syntax highlighting|Extend `SqlHighlighter` in `editor.py`; the View menu toggle persists via `QSettings`|
+|More export formats|Add menu items in `ResultsPanel._show_export_menu()` — raw data is in `_last_rows` / `_last_columns`|
+|Save in-memory to file|Add `Database.export_to_file(path)` using DuckDB's `EXPORT DATABASE`|
