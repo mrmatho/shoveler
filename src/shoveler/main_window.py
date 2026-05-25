@@ -22,6 +22,7 @@ from .query_tab import QueryTab
 class MainWindow(QMainWindow):
     _SYNTAX_HIGHLIGHTING_KEY = "editor/syntax_highlighting_enabled"
     _THEME_KEY = "ui/theme"
+    _WORKING_DIRECTORY_KEY = "files/working_directory"
     _LIGHT_THEME_STYLESHEET = """
     QMainWindow {
         background-color: #f4f7fb;
@@ -117,8 +118,14 @@ class MainWindow(QMainWindow):
         border-bottom: none;
         border-top-left-radius: 5px;
         border-top-right-radius: 5px;
-        padding: 5px 10px;
+        padding: 5px 20px 5px 10px;
         margin-right: 2px;
+    }
+
+    QTabBar::close-button {
+        subcontrol-origin: padding;
+        subcontrol-position: right;
+        right: 4px;
     }
 
     QTabBar::tab:selected {
@@ -249,8 +256,14 @@ class MainWindow(QMainWindow):
         border-bottom: none;
         border-top-left-radius: 5px;
         border-top-right-radius: 5px;
-        padding: 5px 10px;
+        padding: 5px 20px 5px 10px;
         margin-right: 2px;
+    }
+
+    QTabBar::close-button {
+        subcontrol-origin: padding;
+        subcontrol-position: right;
+        right: 4px;
     }
 
     QTabBar::tab:selected {
@@ -307,6 +320,7 @@ class MainWindow(QMainWindow):
         self._build_menu()
         self._set_theme(self.theme, persist=False, show_message=False)
         self._connect_signals()
+        self._restore_working_directory()
         self._new_memory()
 
     # ── UI construction ─────────────────────────────────────────────────────
@@ -586,7 +600,24 @@ class MainWindow(QMainWindow):
             tab.editor.setFocus()
 
     def _on_working_directory_changed(self, path: str):
+        self.settings.setValue(self._WORKING_DIRECTORY_KEY, path)
+        self.settings.sync()
         self.statusBar().showMessage(f"Working directory set to {path}", 4000)
+
+    def _restore_working_directory(self):
+        saved = self.settings.value(self._WORKING_DIRECTORY_KEY, "")
+        saved_path = saved.strip() if isinstance(saved, str) else ""
+        home_dir = os.path.expanduser("~")
+        documents_dir = os.path.join(home_dir, "Documents")
+        default_dir = documents_dir if os.path.isdir(documents_dir) else home_dir
+        target_dir = saved_path if saved_path and os.path.isdir(saved_path) else default_dir
+
+        try:
+            os.chdir(target_dir)
+        except Exception:
+            return
+
+        self.schema_panel.refresh_working_directory()
 
     def _confirm_close_in_memory(self) -> QMessageBox.StandardButton:
         box = QMessageBox(self)
