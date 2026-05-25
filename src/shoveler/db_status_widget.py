@@ -74,9 +74,7 @@ class DatabaseStatusWidget(QFrame):
 
         self.checkpoint_btn = QPushButton("Checkpoint")
         self.checkpoint_btn.setFixedWidth(95)
-        self.checkpoint_btn.setToolTip(
-            "Flush the write-ahead log to disk (file databases only)"
-        )
+        self.checkpoint_btn.setToolTip("Save pending (WAL) changes to the DB file.")
         self.checkpoint_btn.clicked.connect(self.checkpoint_requested.emit)
         layout.addWidget(self.checkpoint_btn)
 
@@ -136,6 +134,7 @@ class DatabaseStatusWidget(QFrame):
         self.dot.setStyleSheet(f"font-size: 18px; color: {colour};")
         self.db_label.setText(text)
         self.db_label.setToolTip(label_tooltip)
+        self.checkpoint_btn.setVisible(checkpoint_enabled)
         self.checkpoint_btn.setEnabled(checkpoint_enabled)
         self.save_inline_btn.setVisible(show_save_inline)
 

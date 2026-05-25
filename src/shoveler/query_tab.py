@@ -66,7 +66,7 @@ class QueryTab(QWidget):
             }
             """
         )
-        self.run_btn.setToolTip("Run query (F5 or Ctrl+Enter)")
+        self.run_btn.setToolTip("Run query (F5 or Ctrl+Enter). Whole query runs if no text selected.")
         self.run_btn.clicked.connect(self._on_run)
         toolbar_layout.addWidget(self.run_btn)
 
