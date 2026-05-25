@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "shoveler"
-version = "0.1.0"
+version = "0.1.1"
 description = "Shoveler: A minimal desktop SQL workbench for DuckDB"
 readme = "README.md"
 requires-python = ">=3.12"
