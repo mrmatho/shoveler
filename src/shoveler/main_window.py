@@ -78,7 +78,7 @@ class MainWindow(QMainWindow):
         splitter.addWidget(self.tab_widget)
         splitter.setStretchFactor(0, 0)
         splitter.setStretchFactor(1, 1)
-        splitter.setSizes([220, 980])
+        splitter.setSizes([260, 940])
 
         root.addWidget(splitter)
 
@@ -112,6 +112,9 @@ class MainWindow(QMainWindow):
         self.db_status.save_requested.connect(self._save_database_as)
         self.db_status.checkpoint_requested.connect(self._checkpoint)
         self.schema_panel.table_double_clicked.connect(self._insert_table_name)
+        self.schema_panel.working_directory_changed.connect(
+            self._on_working_directory_changed
+        )
 
     def _read_bool_setting(self, key: str, default: bool) -> bool:
         value = self.settings.value(key, default)
@@ -193,6 +196,13 @@ class MainWindow(QMainWindow):
             QMessageBox.critical(self, "Could not open file", str(e))
 
     def _new_memory(self):
+        if self._should_confirm_close_in_memory():
+            choice = self._confirm_close_in_memory()
+            if choice == QMessageBox.StandardButton.Cancel:
+                return
+            if choice == QMessageBox.StandardButton.Save and not self._save_database_as():
+                return
+
         self.db.new_memory()
         self.db_status.set_memory_mode()
         self.schema_panel.refresh(self.db)
@@ -243,6 +253,9 @@ class MainWindow(QMainWindow):
             tab.editor.insertPlainText(table_name)
             tab.editor.setFocus()
 
+    def _on_working_directory_changed(self, path: str):
+        self.statusBar().showMessage(f"Working directory set to {path}", 4000)
+
     def _confirm_close_in_memory(self) -> QMessageBox.StandardButton:
         box = QMessageBox(self)
         box.setIcon(QMessageBox.Icon.Warning)
@@ -260,10 +273,15 @@ class MainWindow(QMainWindow):
         box.setButtonText(QMessageBox.StandardButton.Save, "Save Database As...")
         return QMessageBox.StandardButton(box.exec())
 
+    def _should_confirm_close_in_memory(self) -> bool:
+        if not self.db.is_connected or self.db.mode != "memory":
+            return False
+        return len(self.db.get_tables()) > 0
+
     # ── Cleanup ─────────────────────────────────────────────────────────────
 
     def closeEvent(self, event):
-        if self.db.is_connected and self.db.mode == "memory":
+        if self._should_confirm_close_in_memory():
             choice = self._confirm_close_in_memory()
             if choice == QMessageBox.StandardButton.Cancel:
                 event.ignore()

@@ -95,6 +95,7 @@ def test_status_inline_save_button_hidden_in_file_mode(qapp, tmp_path):
 
 def test_main_window_close_in_memory_cancel_keeps_window_open(qapp):
     window = MainWindow()
+    window.db.execute("CREATE TABLE t (x INTEGER)")
     window._confirm_close_in_memory = lambda: QMessageBox.StandardButton.Cancel
 
     closed = window.close()
@@ -108,6 +109,7 @@ def test_main_window_close_in_memory_cancel_keeps_window_open(qapp):
 
 def test_main_window_close_in_memory_save_failed_keeps_window_open(qapp):
     window = MainWindow()
+    window.db.execute("CREATE TABLE t (x INTEGER)")
     window._confirm_close_in_memory = lambda: QMessageBox.StandardButton.Save
     window._save_database_as = lambda: False
 
@@ -117,4 +119,55 @@ def test_main_window_close_in_memory_save_failed_keeps_window_open(qapp):
     assert window.db.is_connected
 
     window.db.close()
+    window.close()
+
+
+def test_main_window_close_in_memory_without_tables_skips_prompt(qapp):
+    window = MainWindow()
+    window._confirm_close_in_memory = lambda: pytest.fail(
+        "Close confirmation should not be shown for empty in-memory database"
+    )
+
+    closed = window.close()
+
+    assert closed is True
+
+
+def test_new_memory_with_tables_cancel_keeps_existing_tables(qapp):
+    window = MainWindow()
+    window.db.execute("CREATE TABLE t (x INTEGER)")
+    window._confirm_close_in_memory = lambda: QMessageBox.StandardButton.Cancel
+
+    window._new_memory()
+
+    assert "t" in window.db.get_tables()
+
+    window.db.close()
+    window.close()
+
+
+def test_new_memory_with_tables_save_failed_keeps_existing_tables(qapp):
+    window = MainWindow()
+    window.db.execute("CREATE TABLE t (x INTEGER)")
+    window._confirm_close_in_memory = lambda: QMessageBox.StandardButton.Save
+    window._save_database_as = lambda: False
+
+    window._new_memory()
+
+    assert "t" in window.db.get_tables()
+
+    window.db.close()
+    window.close()
+
+
+def test_new_memory_with_tables_discard_resets_database(qapp):
+    window = MainWindow()
+    window.db.execute("CREATE TABLE t (x INTEGER)")
+    window._confirm_close_in_memory = lambda: QMessageBox.StandardButton.Discard
+
+    window._new_memory()
+
+    assert window.db.mode == "memory"
+    assert window.db.get_tables() == []
+
     window.close()

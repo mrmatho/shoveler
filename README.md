@@ -1,6 +1,8 @@
 # DuckDB Workbench
 
-A minimal desktop SQL workbench for DuckDB, built with Python and PySide6.
+A minimal desktop SQL workbench for DuckDB, built with Python and PySide6. 
+
+Named after the [Australasian shoveler](https://en.wikipedia.org/wiki/Australasian_shoveler) - a species of "dabbling duck" - in honor of both the database's name and the app's purpose.
 
 ## Setup (uv)
 

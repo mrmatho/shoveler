@@ -1,10 +1,26 @@
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QTreeWidget, QTreeWidgetItem
+import os
+
+from PySide6.QtWidgets import (
+    QWidget,
+    QVBoxLayout,
+    QHBoxLayout,
+    QLabel,
+    QTreeWidget,
+    QTreeWidgetItem,
+    QLineEdit,
+    QPushButton,
+    QListWidget,
+    QSplitter,
+    QFileDialog,
+    QMessageBox,
+)
 from PySide6.QtCore import Signal, Qt
 from PySide6.QtGui import QFont, QColor
 
 
 class SchemaPanel(QWidget):
     table_double_clicked = Signal(str)
+    working_directory_changed = Signal(str)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -12,9 +28,17 @@ class SchemaPanel(QWidget):
         layout.setContentsMargins(4, 6, 4, 4)
         layout.setSpacing(4)
 
+        splitter = QSplitter(Qt.Orientation.Vertical)
+        layout.addWidget(splitter)
+
+        schema_widget = QWidget()
+        schema_layout = QVBoxLayout(schema_widget)
+        schema_layout.setContentsMargins(0, 0, 0, 0)
+        schema_layout.setSpacing(4)
+
         heading = QLabel("Schema")
         heading.setStyleSheet("font-weight: bold; font-size: 12px; color: #555;")
-        layout.addWidget(heading)
+        schema_layout.addWidget(heading)
 
         self.tree = QTreeWidget()
         self.tree.setColumnCount(2)
@@ -23,14 +47,105 @@ class SchemaPanel(QWidget):
         self.tree.setStyleSheet("font-size: 12px;")
         self.tree.header().setDefaultSectionSize(100)
         self.tree.itemDoubleClicked.connect(self._on_double_click)
-        layout.addWidget(self.tree)
+        schema_layout.addWidget(self.tree)
 
         self._empty_label = QLabel("Open a database\nto see its tables.")
         self._empty_label.setStyleSheet("color: #aaa; font-size: 11px; padding: 8px;")
         self._empty_label.setAlignment(Qt.AlignmentFlag.AlignTop)
-        layout.addWidget(self._empty_label)
+        schema_layout.addWidget(self._empty_label)
+
+        files_widget = QWidget()
+        files_layout = QVBoxLayout(files_widget)
+        files_layout.setContentsMargins(0, 0, 0, 0)
+        files_layout.setSpacing(4)
+
+        files_heading = QLabel("Working Directory Files")
+        files_heading.setStyleSheet("font-weight: bold; font-size: 12px; color: #555;")
+        files_layout.addWidget(files_heading)
+
+        path_row = QHBoxLayout()
+        path_row.setContentsMargins(0, 0, 0, 0)
+        path_row.setSpacing(4)
+
+        self.cwd_path = QLineEdit()
+        self.cwd_path.setReadOnly(True)
+        self.cwd_path.setPlaceholderText("Current working directory")
+        path_row.addWidget(self.cwd_path)
+
+        self.change_dir_btn = QPushButton("Change...")
+        self.change_dir_btn.setToolTip("Choose a working directory")
+        self.change_dir_btn.clicked.connect(self._choose_working_directory)
+        path_row.addWidget(self.change_dir_btn)
+
+        files_layout.addLayout(path_row)
+
+        self.files_list = QListWidget()
+        self.files_list.setAlternatingRowColors(True)
+        self.files_list.setStyleSheet("font-size: 12px;")
+        files_layout.addWidget(self.files_list)
+
+        footer_row = QHBoxLayout()
+        footer_row.setContentsMargins(0, 0, 0, 0)
+        footer_row.setSpacing(4)
+        footer_row.addStretch()
+
+        self.refresh_files_btn = QPushButton("Refresh")
+        self.refresh_files_btn.clicked.connect(self.refresh_working_directory)
+        footer_row.addWidget(self.refresh_files_btn)
+
+        files_layout.addLayout(footer_row)
+
+        splitter.addWidget(schema_widget)
+        splitter.addWidget(files_widget)
+        splitter.setStretchFactor(0, 3)
+        splitter.setStretchFactor(1, 2)
+        splitter.setSizes([320, 180])
 
         self._show_empty(True)
+        self.refresh_working_directory()
+
+    def refresh_working_directory(self):
+        cwd = os.getcwd()
+        self.cwd_path.setText(cwd)
+        self.cwd_path.setToolTip(cwd)
+
+        self.files_list.clear()
+        try:
+            entries = sorted(os.listdir(cwd), key=str.casefold)
+        except Exception as e:
+            self.files_list.addItem(f"Could not list files: {e}")
+            self.files_list.setEnabled(False)
+            return
+
+        self.files_list.setEnabled(True)
+        file_names = [
+            name for name in entries if os.path.isfile(os.path.join(cwd, name))
+        ]
+        if not file_names:
+            self.files_list.addItem("(No files in current directory)")
+            self.files_list.setEnabled(False)
+            return
+
+        self.files_list.addItems(file_names)
+
+    def _choose_working_directory(self):
+        start_dir = os.getcwd()
+        selected = QFileDialog.getExistingDirectory(
+            self,
+            "Select Working Directory",
+            start_dir,
+        )
+        if not selected:
+            return
+
+        try:
+            os.chdir(selected)
+        except Exception as e:
+            QMessageBox.critical(self, "Could not change directory", str(e))
+            return
+
+        self.refresh_working_directory()
+        self.working_directory_changed.emit(os.getcwd())
 
     def refresh(self, db):
         self.tree.clear()
