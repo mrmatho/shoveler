@@ -75,8 +75,21 @@ def test_main_window_starts_in_memory_mode(qapp):
     assert window.db.is_connected
     assert window.save_as_action.isEnabled()
     assert "In-memory" in window.db_status.db_label.text()
+    assert window.db_status.save_inline_btn.isHidden() is False
 
     window._confirm_close_in_memory = lambda: QMessageBox.StandardButton.Discard
+    window.close()
+
+
+def test_status_inline_save_button_hidden_in_file_mode(qapp, tmp_path):
+    window = MainWindow()
+
+    file_path = str(tmp_path / "test.duckdb")
+    window._open_file(file_path)
+
+    assert window.db.mode == "file"
+    assert window.db_status.save_inline_btn.isHidden() is True
+
     window.close()
 
 

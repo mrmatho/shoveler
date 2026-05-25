@@ -1,9 +1,13 @@
+import os
+
 from PySide6.QtWidgets import (
     QWidget,
     QVBoxLayout,
     QHBoxLayout,
     QPushButton,
     QSplitter,
+    QFileDialog,
+    QMessageBox,
 )
 from PySide6.QtCore import Qt, Signal
 
@@ -24,9 +28,16 @@ class QueryTab(QWidget):
         toolbar = QWidget()
         toolbar_layout = QHBoxLayout(toolbar)
         toolbar_layout.setContentsMargins(0, 0, 0, 0)
+        toolbar_layout.addStretch()
 
-        self.run_btn = QPushButton("▶  Run")
-        self.run_btn.setFixedWidth(90)
+        self.export_sql_btn = QPushButton("Export SQL")
+        self.export_sql_btn.setFixedWidth(95)
+        self.export_sql_btn.setToolTip("Export SQL in editor to a .sql file")
+        self.export_sql_btn.clicked.connect(self._export_sql)
+        toolbar_layout.addWidget(self.export_sql_btn)
+
+        self.run_btn = QPushButton("▶  Run Query")
+        self.run_btn.setFixedWidth(120)
         self.run_btn.setStyleSheet(
             """
             QPushButton {
@@ -52,7 +63,6 @@ class QueryTab(QWidget):
         self.run_btn.setToolTip("Run query (F5 or Ctrl+Enter)")
         self.run_btn.clicked.connect(self._on_run)
         toolbar_layout.addWidget(self.run_btn)
-        toolbar_layout.addStretch()
 
         layout.addWidget(toolbar)
 
@@ -77,6 +87,30 @@ class QueryTab(QWidget):
         sql = self.editor.get_sql()
         if sql:
             self.run_requested.emit(sql)
+
+    def _export_sql(self):
+        sql = self.editor.toPlainText()
+        if not sql.strip():
+            QMessageBox.information(self, "Nothing to export", "SQL editor is empty.")
+            return
+
+        path, _ = QFileDialog.getSaveFileName(
+            self,
+            "Export SQL",
+            "query.sql",
+            "SQL Files (*.sql);;All Files (*)",
+        )
+        if not path:
+            return
+
+        if not os.path.splitext(path)[1]:
+            path += ".sql"
+
+        try:
+            with open(path, "w", encoding="utf-8", newline="\n") as f:
+                f.write(sql)
+        except Exception as e:
+            QMessageBox.critical(self, "Export failed", str(e))
 
     def show_result(self, result: dict):
         if result["error"]:

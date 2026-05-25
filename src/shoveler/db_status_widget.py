@@ -30,6 +30,7 @@ class DatabaseStatusWidget(QFrame):
     file_opened = Signal(str)
     memory_requested = Signal()
     checkpoint_requested = Signal()
+    save_requested = Signal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -50,6 +51,12 @@ class DatabaseStatusWidget(QFrame):
         self.db_label = QLabel()
         self.db_label.setStyleSheet("font-size: 12px;")
         layout.addWidget(self.db_label)
+
+        self.save_inline_btn = QPushButton("Save Database As...")
+        self.save_inline_btn.setFixedHeight(24)
+        self.save_inline_btn.setVisible(False)
+        self.save_inline_btn.clicked.connect(self.save_requested.emit)
+        layout.addWidget(self.save_inline_btn)
 
         layout.addStretch()
 
@@ -82,6 +89,7 @@ class DatabaseStatusWidget(QFrame):
             colour=COLOUR_FILE,
             text=f"<b>{filename}</b>  <span style='color:#888'>({path})</span>",
             checkpoint_enabled=True,
+            show_save_inline=False,
         )
 
     def set_memory_mode(self):
@@ -89,6 +97,7 @@ class DatabaseStatusWidget(QFrame):
             colour=COLOUR_MEMORY,
             text="<b>In-memory</b>  <span style='color:#888'>(unsaved — data is lost when closed)</span>",
             checkpoint_enabled=False,
+            show_save_inline=True,
         )
 
     def notify_checkpoint_ok(self):
@@ -105,12 +114,20 @@ class DatabaseStatusWidget(QFrame):
             colour=COLOUR_NONE,
             text="No database connected",
             checkpoint_enabled=False,
+            show_save_inline=False,
         )
 
-    def _apply(self, colour: str, text: str, checkpoint_enabled: bool):
+    def _apply(
+        self,
+        colour: str,
+        text: str,
+        checkpoint_enabled: bool,
+        show_save_inline: bool,
+    ):
         self.dot.setStyleSheet(f"font-size: 18px; color: {colour};")
         self.db_label.setText(text)
         self.checkpoint_btn.setEnabled(checkpoint_enabled)
+        self.save_inline_btn.setVisible(show_save_inline)
 
     def _on_open_file(self):
         path, _ = QFileDialog.getOpenFileName(

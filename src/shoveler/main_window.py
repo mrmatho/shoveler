@@ -109,6 +109,7 @@ class MainWindow(QMainWindow):
     def _connect_signals(self):
         self.db_status.file_opened.connect(self._open_file)
         self.db_status.memory_requested.connect(self._new_memory)
+        self.db_status.save_requested.connect(self._save_database_as)
         self.db_status.checkpoint_requested.connect(self._checkpoint)
         self.schema_panel.table_double_clicked.connect(self._insert_table_name)
 
