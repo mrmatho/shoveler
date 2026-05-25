@@ -27,6 +27,28 @@ class QueryTab(QWidget):
 
         self.run_btn = QPushButton("▶  Run")
         self.run_btn.setFixedWidth(90)
+        self.run_btn.setStyleSheet(
+            """
+            QPushButton {
+                background-color: #2e8b57;
+                color: white;
+                border: 1px solid #256f46;
+                border-radius: 4px;
+                font-weight: 600;
+                padding: 2px 8px;
+            }
+            QPushButton:hover {
+                background-color: #257046;
+            }
+            QPushButton:pressed {
+                background-color: #1f5f3b;
+            }
+            QPushButton:disabled {
+                background-color: #6e8f7d;
+                color: #e6e6e6;
+            }
+            """
+        )
         self.run_btn.setToolTip("Run query (F5 or Ctrl+Enter)")
         self.run_btn.clicked.connect(self._on_run)
         toolbar_layout.addWidget(self.run_btn)
