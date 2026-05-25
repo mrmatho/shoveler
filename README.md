@@ -1,4 +1,4 @@
-# DuckDB Workbench
+# Shoveler - A DuckDB Workbench
 
 A minimal desktop SQL workbench for DuckDB, built with Python and PySide6.
 
