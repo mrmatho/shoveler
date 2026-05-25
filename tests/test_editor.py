@@ -7,6 +7,7 @@ from PySide6.QtWidgets import QApplication, QMessageBox
 
 from shoveler.editor import SqlEditor, SqlHighlighter
 from shoveler.main_window import MainWindow
+from shoveler.query_tab import QueryTab
 
 
 @pytest.fixture(scope="session")
@@ -43,6 +44,27 @@ def test_sql_editor_enables_highlighting_by_default(qapp):
     editor = SqlEditor()
 
     assert editor.syntax_highlighting_enabled is True
+
+
+def test_query_tab_load_sql_from_path_loads_editor_contents(qapp, tmp_path):
+    sql_path = tmp_path / "query.sql"
+    sql_text = "SELECT 1;\nSELECT 2;"
+    sql_path.write_text(sql_text, encoding="utf-8")
+
+    tab = QueryTab()
+    loaded = tab._load_sql_from_path(str(sql_path))
+
+    assert loaded is True
+    assert tab.editor.toPlainText() == sql_text
+
+
+def test_query_tab_load_sql_from_path_failure_returns_false(qapp, monkeypatch):
+    tab = QueryTab()
+    monkeypatch.setattr(QMessageBox, "critical", lambda *args, **kwargs: None)
+
+    loaded = tab._load_sql_from_path("does_not_exist.sql")
+
+    assert loaded is False
 
 
 def test_main_window_persists_syntax_highlighting_setting(qapp, tmp_path):
@@ -169,5 +191,31 @@ def test_new_memory_with_tables_discard_resets_database(qapp):
 
     assert window.db.mode == "memory"
     assert window.db.get_tables() == []
+
+    window.close()
+
+
+def test_main_window_open_sql_action_uses_ctrl_o(qapp):
+    window = MainWindow()
+
+    assert window.open_sql_action.shortcut().toString() == "Ctrl+O"
+
+    window.close()
+
+
+def test_main_window_open_sql_routes_to_current_tab(qapp):
+    window = MainWindow()
+    tab = window._current_tab()
+    called = {"value": False}
+
+    def fake_open_sql_file_dialog():
+        called["value"] = True
+        return True
+
+    tab.open_sql_file_dialog = fake_open_sql_file_dialog
+
+    window._open_sql_file()
+
+    assert called["value"] is True
 
     window.close()

@@ -90,6 +90,12 @@ class MainWindow(QMainWindow):
 
     def _build_menu(self):
         file_menu = self.menuBar().addMenu("&File")
+
+        self.open_sql_action = QAction("Open SQL...", self)
+        self.open_sql_action.setShortcut("Ctrl+O")
+        self.open_sql_action.triggered.connect(self._open_sql_file)
+        file_menu.addAction(self.open_sql_action)
+
         self.save_as_action = QAction("Save Database As...", self)
         self.save_as_action.setShortcut("Ctrl+Shift+S")
         self.save_as_action.setEnabled(False)
@@ -183,6 +189,14 @@ class MainWindow(QMainWindow):
             )
 
     # ── Database actions ────────────────────────────────────────────────────
+
+    def _open_sql_file(self):
+        tab = self._current_tab()
+        if not tab:
+            return
+
+        if tab.open_sql_file_dialog():
+            self.statusBar().showMessage("SQL file loaded", 3000)
 
     def _open_file(self, path: str):
         try:

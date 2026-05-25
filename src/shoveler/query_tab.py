@@ -30,6 +30,12 @@ class QueryTab(QWidget):
         toolbar_layout.setContentsMargins(0, 0, 0, 0)
         toolbar_layout.addStretch()
 
+        self.load_sql_btn = QPushButton("Load SQL")
+        self.load_sql_btn.setFixedWidth(90)
+        self.load_sql_btn.setToolTip("Load SQL from a .sql file")
+        self.load_sql_btn.clicked.connect(self._load_sql)
+        toolbar_layout.addWidget(self.load_sql_btn)
+
         self.export_sql_btn = QPushButton("Export SQL")
         self.export_sql_btn.setFixedWidth(95)
         self.export_sql_btn.setToolTip("Export SQL in editor to a .sql file")
@@ -87,6 +93,33 @@ class QueryTab(QWidget):
         sql = self.editor.get_sql()
         if sql:
             self.run_requested.emit(sql)
+
+    def _load_sql(self):
+        self.open_sql_file_dialog()
+
+    def open_sql_file_dialog(self) -> bool:
+        path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Load SQL",
+            "",
+            "SQL Files (*.sql);;All Files (*)",
+        )
+        if not path:
+            return False
+
+        return self._load_sql_from_path(path)
+
+    def _load_sql_from_path(self, path: str) -> bool:
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                sql = f.read()
+        except Exception as e:
+            QMessageBox.critical(self, "Load failed", str(e))
+            return False
+
+        self.editor.setPlainText(sql)
+        self.editor.setFocus()
+        return True
 
     def _export_sql(self):
         sql = self.editor.toPlainText()

@@ -1,6 +1,6 @@
 # DuckDB Workbench
 
-A minimal desktop SQL workbench for DuckDB, built with Python and PySide6. 
+A minimal desktop SQL workbench for DuckDB, built with Python and PySide6.
 
 Named after the [Australasian shoveler](https://en.wikipedia.org/wiki/Australasian_shoveler) - a species of "dabbling duck" - in honor of both the database's name and the app's purpose.
 
@@ -26,18 +26,6 @@ uv run python -m shoveler
 ```shell
 uv run pytest
 ```
-
-## Managing dependencies
-
-```shell
-uv add somepackage              # add a runtime dependency
-uv add --dev somepackage        # add to the dev group (not published to PyPI)
-uv remove somepackage           # remove a dependency
-uv lock                         # regenerate uv.lock without installing
-uv sync                         # install from uv.lock
-```
-
-Commit `uv.lock` to the repository. It pins exact versions for reproducible installs.
 
 ## Usage
 

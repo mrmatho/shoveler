@@ -61,13 +61,13 @@ class DatabaseStatusWidget(QFrame):
         layout.addStretch()
 
         # Buttons
-        self.open_btn = QPushButton("Open File…")
-        self.open_btn.setFixedWidth(95)
+        self.open_btn = QPushButton("Open DB File…")
+        self.open_btn.setFixedWidth(110)
         self.open_btn.clicked.connect(self._on_open_file)
         layout.addWidget(self.open_btn)
 
-        self.memory_btn = QPushButton("New In-Memory")
-        self.memory_btn.setFixedWidth(115)
+        self.memory_btn = QPushButton("New Blank DB")
+        self.memory_btn.setFixedWidth(105)
         self.memory_btn.clicked.connect(self.memory_requested.emit)
         layout.addWidget(self.memory_btn)
 
