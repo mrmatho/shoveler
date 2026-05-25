@@ -4,7 +4,7 @@ A minimal desktop SQL workbench for DuckDB, built with Python and PySide6.
 
 ## Setup (uv)
 
-```
+```shell
 git clone https://github.com/yourname/shoveler
 cd shoveler
 uv sync
@@ -15,19 +15,19 @@ and respects `uv.lock` if it exists. Run it again after pulling changes.
 
 ## Running
 
-```
+```shell
 uv run python -m shoveler
 ```
 
 ## Testing
 
-```
+```shell
 uv run pytest
 ```
 
 ## Managing dependencies
 
-```
+```shell
 uv add somepackage              # add a runtime dependency
 uv add --dev somepackage        # add to the dev group (not published to PyPI)
 uv remove somepackage           # remove a dependency
@@ -52,7 +52,7 @@ The project includes `shoveler.spec` with the correct PyInstaller
 configuration. Use this rather than running `pyinstaller` with flags directly —
 the spec handles a non-obvious issue with DuckDB's compiled extension.
 
-```
+```shell
 uv run pyinstaller shoveler.spec
 ```
 
@@ -72,17 +72,16 @@ to start.
 
 ## Publishing to PyPI
 
-Check that `shoveler` is available: https://pypi.org/project/shoveler/
+Check that `shoveler` is available: [https://pypi.org/project/shoveler/](https://pypi.org/project/shoveler/)
 
-```
+```shell
 uv build
 uv publish
 ```
 
 ## Extending
 
-| Feature             | Where to add it                                                            |
-|---------------------|----------------------------------------------------------------------------|
-| Syntax highlighting | Subclass `QSyntaxHighlighter`, attach to `SqlEditor.document()`           |
+| Feature | Where to add it |
+| :--- | :--- |
 | More export formats | Add menu items in `ResultsPanel._show_export_menu()` — raw data is in `_last_rows` / `_last_columns` |
-| Save in-memory to file | Add `Database.export_to_file(path)` using DuckDB's `EXPORT DATABASE`   |
+| Save in-memory to file | Add `Database.export_to_file(path)` using DuckDB's `EXPORT DATABASE` |
