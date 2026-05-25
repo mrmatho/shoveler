@@ -38,6 +38,26 @@ uv run pytest
 - Double-click a table name in the schema panel to insert it into the editor
 - **View > Syntax highlighting** — toggle SQL highlighting on or off; enabled by default and remembered between launches
 
+## Documentation (Phase 1)
+
+Basic user docs are available in the `docs/` folder:
+
+- [Docs Home](docs/index.md)
+- [Quickstart (10 minutes)](docs/quickstart.md)
+- [Core Concepts](docs/concepts.md)
+- [Troubleshooting](docs/troubleshooting.md)
+
+### Publish with GitHub Pages
+
+For a simple setup:
+
+1. Go to repository **Settings > Pages**.
+2. Under **Build and deployment**, set **Source** to **Deploy from a branch**.
+3. Choose branch `main` and folder `/docs`.
+4. Save.
+
+GitHub Pages will publish the docs automatically from the `docs/` directory.
+
 ## Building a standalone Windows executable
 
 The project includes `shoveler.spec` with the correct PyInstaller
