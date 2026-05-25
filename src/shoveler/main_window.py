@@ -300,7 +300,7 @@ class MainWindow(QMainWindow):
             self._SYNTAX_HIGHLIGHTING_KEY, True
         )
         self.theme = self._read_theme_setting()
-        self.setWindowTitle("Shoveler: DuckDB Workbench")
+        self.setWindowTitle("Shoveler: Duck DB Workbench")
         self.resize(1200, 720)
 
         self._build_ui()
@@ -521,7 +521,7 @@ class MainWindow(QMainWindow):
             self.db.open_file(path)
             self.db_status.set_file_mode(path)
             self.schema_panel.refresh(self.db)
-            self.setWindowTitle(f"DuckDB Workbench — {path}")
+            self.setWindowTitle(f"Shoveler: Duck DB Workbench — {path}")
             self.save_as_action.setEnabled(True)
             self.statusBar().showMessage(f"Opened {path}", 4000)
         except Exception as e:
@@ -538,7 +538,7 @@ class MainWindow(QMainWindow):
         self.db.new_memory()
         self.db_status.set_memory_mode()
         self.schema_panel.refresh(self.db)
-        self.setWindowTitle("DuckDB Workbench — In-Memory")
+        self.setWindowTitle("Shoveler: Duck DB Workbench — In-Memory")
         self.save_as_action.setEnabled(True)
         self.statusBar().showMessage("In-memory database created", 4000)
 
@@ -564,7 +564,7 @@ class MainWindow(QMainWindow):
             saved_path = self.db.save_as(path)
             self.db_status.set_file_mode(saved_path)
             self.schema_panel.refresh(self.db)
-            self.setWindowTitle(f"DuckDB Workbench — {saved_path}")
+            self.setWindowTitle(f"Shoveler: Duck DB Workbench — {saved_path}")
             self.statusBar().showMessage(f"Saved database to {saved_path}", 4000)
             return True
         except Exception as e:

@@ -16,12 +16,13 @@ from PyInstaller.utils.hooks import collect_all
 #   - any data files shipped with duckdb
 # Without this, the packaged app fails at runtime with an ImportError on _duckdb.
 duckdb_datas, duckdb_binaries, duckdb_hiddenimports = collect_all("duckdb")
+app_icon = "src/shoveler/assets/shoveler.ico"
 
 a = Analysis(
     ["src/shoveler/__main__.py"],
     pathex=[],
     binaries=duckdb_binaries,
-    datas=duckdb_datas,
+    datas=duckdb_datas + [(app_icon, "shoveler/assets")],
     hiddenimports=duckdb_hiddenimports,
     hookspath=[],
     hooksconfig={},
@@ -42,6 +43,7 @@ exe = EXE(
     bootloader_ignore_signals=False,
     strip=False,
     upx=True,
+    icon=app_icon,
     console=False,  # no console window — same effect as gui-scripts in pyproject.toml
     disable_windowed_traceback=False,
 )

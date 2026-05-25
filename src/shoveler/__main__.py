@@ -1,4 +1,7 @@
 import sys
+from pathlib import Path
+
+from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QApplication
 
 try:
@@ -11,7 +14,11 @@ except ImportError:
 def main():
     app = QApplication(sys.argv)
     app.setStyle("Fusion")
+    icon_path = Path(__file__).resolve().parent / "assets" / "shoveler.ico"
+    app_icon = QIcon(str(icon_path))
+    app.setWindowIcon(app_icon)
     window = MainWindow()
+    window.setWindowIcon(app_icon)
     window.show()
     sys.exit(app.exec())
 
