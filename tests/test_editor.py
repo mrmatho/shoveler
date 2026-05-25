@@ -6,6 +6,7 @@ from PySide6.QtGui import QTextDocument
 from PySide6.QtWidgets import QApplication, QMessageBox
 
 from shoveler.editor import SqlEditor, SqlHighlighter
+from shoveler.db_status_widget import DatabaseStatusWidget
 from shoveler.main_window import MainWindow
 from shoveler.query_tab import QueryTab
 
@@ -46,6 +47,22 @@ def test_sql_editor_enables_highlighting_by_default(qapp):
     assert editor.syntax_highlighting_enabled is True
 
 
+def test_sql_editor_has_line_number_gutter(qapp):
+    editor = SqlEditor()
+
+    assert editor.line_number_area is not None
+    assert editor.line_number_area_width() > 0
+
+
+def test_sql_editor_line_number_gutter_width_grows_with_more_lines(qapp):
+    editor = SqlEditor()
+    initial_width = editor.line_number_area_width()
+
+    editor.setPlainText("\n".join(f"SELECT {index};" for index in range(1, 201)))
+
+    assert editor.line_number_area_width() >= initial_width
+
+
 def test_query_tab_load_sql_from_path_loads_editor_contents(qapp, tmp_path):
     sql_path = tmp_path / "query.sql"
     sql_text = "SELECT 1;\nSELECT 2;"
@@ -65,6 +82,29 @@ def test_query_tab_load_sql_from_path_failure_returns_false(qapp, monkeypatch):
     loaded = tab._load_sql_from_path("does_not_exist.sql")
 
     assert loaded is False
+
+
+def test_database_status_widget_shortens_long_file_path(qapp):
+    widget = DatabaseStatusWidget()
+    path = (
+        "C:/very/long/path/to/a/database/location/that/keeps/going/"
+        "and/going/example.duckdb"
+    )
+
+    widget.set_file_mode(path)
+
+    assert widget.db_label.text() == "<b>example.duckdb</b>"
+    assert widget.db_label.toolTip() == path
+
+
+def test_database_status_widget_shows_short_file_path(qapp):
+    widget = DatabaseStatusWidget()
+    path = "C:/data/example.duckdb"
+
+    widget.set_file_mode(path)
+
+    assert path in widget.db_label.text()
+    assert widget.db_label.toolTip() == path
 
 
 def test_main_window_persists_syntax_highlighting_setting(qapp, tmp_path):
@@ -87,6 +127,44 @@ def test_main_window_persists_syntax_highlighting_setting(qapp, tmp_path):
     assert reloaded.syntax_highlighting_enabled is False
     assert reloaded._current_tab().editor.syntax_highlighting_enabled is False
     reloaded._confirm_close_in_memory = lambda: QMessageBox.StandardButton.Discard
+    reloaded.close()
+
+
+def test_main_window_theme_defaults_to_light(qapp, tmp_path):
+    QSettings.setDefaultFormat(QSettings.Format.IniFormat)
+    QSettings.setPath(
+        QSettings.Format.IniFormat,
+        QSettings.Scope.UserScope,
+        str(tmp_path),
+    )
+
+    window = MainWindow()
+
+    assert window.theme == "light"
+    assert window.light_theme_action.isChecked() is True
+    assert window.dark_theme_action.isChecked() is False
+
+    window.close()
+
+
+def test_main_window_persists_dark_theme_setting(qapp, tmp_path):
+    QSettings.setDefaultFormat(QSettings.Format.IniFormat)
+    QSettings.setPath(
+        QSettings.Format.IniFormat,
+        QSettings.Scope.UserScope,
+        str(tmp_path),
+    )
+
+    window = MainWindow()
+    window._set_theme("dark")
+    window.close()
+
+    reloaded = MainWindow()
+
+    assert reloaded.theme == "dark"
+    assert reloaded.dark_theme_action.isChecked() is True
+    assert reloaded.light_theme_action.isChecked() is False
+
     reloaded.close()
 
 

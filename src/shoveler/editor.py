@@ -1,12 +1,25 @@
-from PySide6.QtWidgets import QPlainTextEdit
+from PySide6.QtWidgets import QPlainTextEdit, QWidget
 from PySide6.QtGui import (
     QColor,
     QFont,
+    QPainter,
     QSyntaxHighlighter,
     QTextCharFormat,
     QTextDocument,
 )
-from PySide6.QtCore import QRegularExpression, Signal, Qt
+from PySide6.QtCore import QRegularExpression, QRect, QSize, Signal, Qt
+
+
+class LineNumberArea(QWidget):
+    def __init__(self, editor: "SqlEditor"):
+        super().__init__(editor)
+        self._editor = editor
+
+    def sizeHint(self) -> QSize:
+        return QSize(self._editor.line_number_area_width(), 0)
+
+    def paintEvent(self, event):
+        self._editor.line_number_area_paint_event(event)
 
 
 class SqlHighlighter(QSyntaxHighlighter):
@@ -172,6 +185,7 @@ class SqlEditor(QPlainTextEdit):
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.line_number_area = LineNumberArea(self)
         self._highlighter = SqlHighlighter(self.document())
         font = QFont("Courier New", 11)
         font.setStyleHint(QFont.StyleHint.Monospace)
@@ -181,7 +195,13 @@ class SqlEditor(QPlainTextEdit):
             "Select part of your query to run only that selection."
         )
         self.setTabStopDistance(40)
+        self._line_number_bg = QColor("#edf3fb")
+        self._line_number_fg = QColor("#70839a")
+        self._line_number_border = QColor("#d7deea")
         self.set_syntax_highlighting_enabled(True)
+        self.blockCountChanged.connect(self._update_line_number_area_width)
+        self.updateRequest.connect(self._update_line_number_area)
+        self._update_line_number_area_width(0)
 
     @property
     def syntax_highlighting_enabled(self) -> bool:
@@ -189,6 +209,76 @@ class SqlEditor(QPlainTextEdit):
 
     def set_syntax_highlighting_enabled(self, enabled: bool):
         self._highlighter.set_enabled(enabled)
+
+    def set_theme(self, theme: str):
+        if (theme or "").strip().lower() == "dark":
+            self._line_number_bg = QColor("#242f40")
+            self._line_number_fg = QColor("#8fa1b7")
+            self._line_number_border = QColor("#3b4659")
+        else:
+            self._line_number_bg = QColor("#edf3fb")
+            self._line_number_fg = QColor("#70839a")
+            self._line_number_border = QColor("#d7deea")
+        self.line_number_area.update()
+
+    def line_number_area_width(self) -> int:
+        digits = len(str(max(1, self.blockCount())))
+        return 12 + self.fontMetrics().horizontalAdvance("9") * digits
+
+    def _update_line_number_area_width(self, _block_count: int):
+        self.setViewportMargins(self.line_number_area_width(), 0, 0, 0)
+
+    def _update_line_number_area(self, rect: QRect, dy: int):
+        if dy:
+            self.line_number_area.scroll(0, dy)
+        else:
+            self.line_number_area.update(0, rect.y(), self.line_number_area.width(), rect.height())
+
+        if rect.contains(self.viewport().rect()):
+            self._update_line_number_area_width(0)
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        contents_rect = self.contentsRect()
+        self.line_number_area.setGeometry(
+            QRect(
+                contents_rect.left(),
+                contents_rect.top(),
+                self.line_number_area_width(),
+                contents_rect.height(),
+            )
+        )
+
+    def line_number_area_paint_event(self, event):
+        painter = QPainter(self.line_number_area)
+        painter.fillRect(event.rect(), self._line_number_bg)
+
+        block = self.firstVisibleBlock()
+        block_number = block.blockNumber()
+        top = round(self.blockBoundingGeometry(block).translated(self.contentOffset()).top())
+        bottom = top + round(self.blockBoundingRect(block).height())
+
+        while block.isValid() and top <= event.rect().bottom():
+            if block.isVisible() and bottom >= event.rect().top():
+                number = str(block_number + 1)
+                painter.setPen(self._line_number_fg)
+                painter.drawText(
+                    0,
+                    top,
+                    self.line_number_area.width() - 6,
+                    self.fontMetrics().height(),
+                    Qt.AlignmentFlag.AlignRight,
+                    number,
+                )
+
+            block = block.next()
+            top = bottom
+            bottom = top + round(self.blockBoundingRect(block).height())
+            block_number += 1
+
+        painter.setPen(self._line_number_border)
+        x = self.line_number_area.width() - 1
+        painter.drawLine(x, event.rect().top(), x, event.rect().bottom())
 
     def keyPressEvent(self, event):
         is_f5 = event.key() == Qt.Key.Key_F5

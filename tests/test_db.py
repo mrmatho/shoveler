@@ -105,6 +105,44 @@ def test_get_columns_includes_types(db_with_table):
     assert "VARCHAR" in type_map["name"]
 
 
+def test_get_column_key_flags_primary_key(db):
+    db.execute("CREATE TABLE users (id INTEGER PRIMARY KEY, name VARCHAR)")
+
+    flags = db.get_column_key_flags("users")
+
+    assert flags["id"] == (True, False)
+    assert flags["name"] == (False, False)
+
+
+def test_get_column_key_flags_foreign_key(db):
+    db.execute("CREATE TABLE parents (id INTEGER PRIMARY KEY)")
+    db.execute(
+        "CREATE TABLE children (id INTEGER, parent_id INTEGER, "
+        "FOREIGN KEY(parent_id) REFERENCES parents(id))"
+    )
+
+    flags = db.get_column_key_flags("children")
+
+    assert flags["id"] == (False, False)
+    assert flags["parent_id"] == (False, True)
+
+
+def test_get_column_key_info_foreign_key_includes_referenced_table(db):
+    db.execute("CREATE TABLE parents (id INTEGER PRIMARY KEY)")
+    db.execute(
+        "CREATE TABLE children (id INTEGER, parent_id INTEGER, "
+        "FOREIGN KEY(parent_id) REFERENCES parents(id))"
+    )
+
+    info = db.get_column_key_info("children")
+
+    assert info["id"] == {"is_primary_key": False, "referenced_table": None}
+    assert info["parent_id"] == {
+        "is_primary_key": False,
+        "referenced_table": "parents",
+    }
+
+
 def test_get_tables_no_connection():
     db = Database()
     assert db.get_tables() == []

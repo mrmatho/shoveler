@@ -94,6 +94,73 @@ class Database:
         except Exception:
             return []
 
+    def get_column_key_flags(self, table: str) -> dict[str, tuple[bool, bool]]:
+        """Return key flags by column name as (is_primary_key, is_foreign_key)."""
+        key_info = self.get_column_key_info(table)
+        return {
+            column: (details["is_primary_key"], details["referenced_table"] is not None)
+            for column, details in key_info.items()
+        }
+
+    def get_column_key_info(self, table: str) -> dict[str, dict[str, bool | str | None]]:
+        """Return per-column key metadata including referenced table for foreign keys."""
+        if not self.conn:
+            return {}
+
+        pk_columns: set[str] = set()
+        fk_columns: dict[str, str | None] = {}
+
+        try:
+            pk_result = self.conn.execute(
+                """
+                SELECT kcu.column_name
+                FROM information_schema.table_constraints AS tc
+                JOIN information_schema.key_column_usage AS kcu
+                  ON tc.constraint_catalog = kcu.constraint_catalog
+                 AND tc.constraint_schema = kcu.constraint_schema
+                 AND tc.constraint_name = kcu.constraint_name
+                WHERE tc.table_schema = current_schema()
+                  AND tc.table_name = ?
+                  AND tc.constraint_type = 'PRIMARY KEY'
+                """,
+                [table],
+            ).fetchall()
+            pk_columns = {row[0] for row in pk_result}
+        except Exception:
+            escaped_table = table.replace("'", "''")
+            try:
+                pragma_result = self.conn.execute(
+                    f"PRAGMA table_info('{escaped_table}')"
+                ).fetchall()
+                for row in pragma_result:
+                    if len(row) > 5 and row[5]:
+                        pk_columns.add(row[1])
+            except Exception:
+                pass
+
+        try:
+            fk_result = self.conn.execute(
+                """
+                SELECT UNNEST(constraint_column_names) AS column_name, referenced_table
+                FROM duckdb_constraints()
+                WHERE schema_name = current_schema()
+                  AND table_name = ?
+                  AND constraint_type = 'FOREIGN KEY'
+                """,
+                [table],
+            ).fetchall()
+            fk_columns = {row[0]: row[1] for row in fk_result}
+        except Exception:
+            pass
+
+        return {
+            column: {
+                "is_primary_key": column in pk_columns,
+                "referenced_table": fk_columns.get(column),
+            }
+            for column, _ in self.get_columns(table)
+        }
+
     def _close_existing(self):
         if self.conn:
             try:

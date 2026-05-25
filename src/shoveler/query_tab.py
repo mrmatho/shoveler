@@ -155,3 +155,6 @@ class QueryTab(QWidget):
 
     def set_syntax_highlighting_enabled(self, enabled: bool):
         self.editor.set_syntax_highlighting_enabled(enabled)
+
+    def set_theme(self, theme: str):
+        self.editor.set_theme(theme)

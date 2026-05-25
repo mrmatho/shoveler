@@ -15,6 +15,7 @@ from PySide6.QtCore import Signal, Qt
 COLOUR_FILE   = "#2a9d2a"   # green   → file-backed database
 COLOUR_MEMORY = "#e6a817"   # amber   → in-memory (unsaved)
 COLOUR_NONE   = "#999999"   # grey    → nothing connected
+MAX_STATUS_PATH_LENGTH = 60
 
 
 class DatabaseStatusWidget(QFrame):
@@ -61,7 +62,7 @@ class DatabaseStatusWidget(QFrame):
         layout.addStretch()
 
         # Buttons
-        self.open_btn = QPushButton("Open DB File…")
+        self.open_btn = QPushButton("Open DB File")
         self.open_btn.setFixedWidth(110)
         self.open_btn.clicked.connect(self._on_open_file)
         layout.addWidget(self.open_btn)
@@ -85,11 +86,16 @@ class DatabaseStatusWidget(QFrame):
 
     def set_file_mode(self, path: str):
         filename = os.path.basename(path)
+        if len(path) > MAX_STATUS_PATH_LENGTH:
+            text = f"<b>{filename}</b>"
+        else:
+            text = f"<b>{filename}</b>  <span style='color:#888'>({path})</span>"
         self._apply(
             colour=COLOUR_FILE,
-            text=f"<b>{filename}</b>  <span style='color:#888'>({path})</span>",
+            text=text,
             checkpoint_enabled=True,
             show_save_inline=False,
+            label_tooltip=path,
         )
 
     def set_memory_mode(self):
@@ -98,6 +104,7 @@ class DatabaseStatusWidget(QFrame):
             text="<b>In-memory</b>  <span style='color:#888'>(unsaved — data is lost when closed)</span>",
             checkpoint_enabled=False,
             show_save_inline=True,
+            label_tooltip="",
         )
 
     def notify_checkpoint_ok(self):
@@ -115,6 +122,7 @@ class DatabaseStatusWidget(QFrame):
             text="No database connected",
             checkpoint_enabled=False,
             show_save_inline=False,
+            label_tooltip="",
         )
 
     def _apply(
@@ -123,9 +131,11 @@ class DatabaseStatusWidget(QFrame):
         text: str,
         checkpoint_enabled: bool,
         show_save_inline: bool,
+        label_tooltip: str,
     ):
         self.dot.setStyleSheet(f"font-size: 18px; color: {colour};")
         self.db_label.setText(text)
+        self.db_label.setToolTip(label_tooltip)
         self.checkpoint_btn.setEnabled(checkpoint_enabled)
         self.save_inline_btn.setVisible(show_save_inline)
 

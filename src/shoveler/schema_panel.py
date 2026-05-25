@@ -166,10 +166,29 @@ class SchemaPanel(QWidget):
             table_item.setData(0, Qt.ItemDataRole.UserRole, "table")
             table_item.setToolTip(0, f"Double-click to insert '{table_name}' into editor")
 
+            key_info = db.get_column_key_info(table_name)
+
             for col_name, col_type in db.get_columns(table_name):
-                col_item = QTreeWidgetItem([col_name, col_type])
+                details = key_info.get(
+                    col_name,
+                    {"is_primary_key": False, "referenced_table": None},
+                )
+                is_primary = bool(details["is_primary_key"])
+                referenced_table = details["referenced_table"]
+                icon_text = ""
+                tooltip_parts: list[str] = []
+                if is_primary:
+                    icon_text += "🔑 "
+                    tooltip_parts.append("Primary key")
+                if referenced_table:
+                    icon_text += "🔗 "
+                    tooltip_parts.append(f"Foreign key → {referenced_table}")
+
+                col_item = QTreeWidgetItem([f"{icon_text}{col_name}", col_type])
                 col_item.setForeground(1, grey)
                 col_item.setData(0, Qt.ItemDataRole.UserRole, "column")
+                if tooltip_parts:
+                    col_item.setToolTip(0, " · ".join(tooltip_parts))
                 table_item.addChild(col_item)
 
             self.tree.addTopLevelItem(table_item)
