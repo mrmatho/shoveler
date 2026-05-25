@@ -1,3 +1,5 @@
+import os
+
 from PySide6.QtWidgets import (
     QMainWindow,
     QWidget,
@@ -6,6 +8,7 @@ from PySide6.QtWidgets import (
     QTabWidget,
     QPushButton,
     QMessageBox,
+    QFileDialog,
 )
 from PySide6.QtGui import QAction
 from PySide6.QtCore import QSettings, Qt
@@ -85,6 +88,13 @@ class MainWindow(QMainWindow):
         self._add_tab()
 
     def _build_menu(self):
+        file_menu = self.menuBar().addMenu("&File")
+        self.save_as_action = QAction("Save Database As...", self)
+        self.save_as_action.setShortcut("Ctrl+Shift+S")
+        self.save_as_action.setEnabled(False)
+        self.save_as_action.triggered.connect(self._save_database_as)
+        file_menu.addAction(self.save_as_action)
+
         view_menu = self.menuBar().addMenu("&View")
 
         self.syntax_highlighting_action = QAction("Syntax highlighting", self)
@@ -175,6 +185,7 @@ class MainWindow(QMainWindow):
             self.db_status.set_file_mode(path)
             self.schema_panel.refresh(self.db)
             self.setWindowTitle(f"DuckDB Workbench — {path}")
+            self.save_as_action.setEnabled(True)
             self.statusBar().showMessage(f"Opened {path}", 4000)
         except Exception as e:
             QMessageBox.critical(self, "Could not open file", str(e))
@@ -184,7 +195,35 @@ class MainWindow(QMainWindow):
         self.db_status.set_memory_mode()
         self.schema_panel.refresh(self.db)
         self.setWindowTitle("DuckDB Workbench — In-Memory")
+        self.save_as_action.setEnabled(True)
         self.statusBar().showMessage("In-memory database created", 4000)
+
+    def _save_database_as(self):
+        if not self.db.is_connected:
+            QMessageBox.information(self, "Nothing to save", "No database connected.")
+            return
+
+        default_path = self.db.path or ""
+        path, _ = QFileDialog.getSaveFileName(
+            self,
+            "Save DuckDB Database As",
+            default_path,
+            "DuckDB Files (*.duckdb *.db);;All Files (*)",
+        )
+        if not path:
+            return
+
+        if not os.path.splitext(path)[1]:
+            path += ".duckdb"
+
+        try:
+            saved_path = self.db.save_as(path)
+            self.db_status.set_file_mode(saved_path)
+            self.schema_panel.refresh(self.db)
+            self.setWindowTitle(f"DuckDB Workbench — {saved_path}")
+            self.statusBar().showMessage(f"Saved database to {saved_path}", 4000)
+        except Exception as e:
+            QMessageBox.critical(self, "Save failed", str(e))
 
     def _checkpoint(self):
         try:

@@ -1,4 +1,5 @@
 import duckdb
+import os
 import time
 from typing import Literal
 
@@ -24,6 +25,31 @@ class Database:
     def checkpoint(self):
         if self.mode == "file" and self.conn:
             self.conn.execute("CHECKPOINT")
+
+    def save_as(self, path: str) -> str:
+        if not self.conn:
+            raise RuntimeError("No database connected.")
+
+        target_path = os.path.abspath(path)
+        if self.mode == "file" and self.path and os.path.abspath(self.path) == target_path:
+            self.checkpoint()
+            return target_path
+
+        source_catalog = self.conn.execute("PRAGMA database_list").fetchone()[1]
+        source_catalog_escaped = source_catalog.replace('"', '""')
+        target_path_escaped = target_path.replace("'", "''")
+        target_catalog = "shoveler_save_target"
+
+        self.conn.execute(f"ATTACH '{target_path_escaped}' AS {target_catalog}")
+        try:
+            self.conn.execute(
+                f'COPY FROM DATABASE "{source_catalog_escaped}" TO {target_catalog}'
+            )
+        finally:
+            self.conn.execute(f"DETACH {target_catalog}")
+
+        self.open_file(target_path)
+        return target_path
 
     def execute(self, sql: str) -> dict:
         """Returns dict: columns, rows, elapsed, error"""
