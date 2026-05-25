@@ -41,6 +41,7 @@ Commit `uv.lock` to the repository. It pins exact versions for reproducible inst
 
 - **Open File** — connect to an existing `.duckdb` or `.db` file (green indicator)
 - **New In-Memory** — scratch database; data is lost when closed (amber indicator)
+- **File > Save Database As...** — save current database state to a `.duckdb` file
 - **Checkpoint** — flush the write-ahead log to disk (file databases only)
 - **F5 or Ctrl+Enter** — run query
 - Select part of your SQL to run only that selection
@@ -75,6 +76,4 @@ to start.
 
 |Feature|Where to add it|
 |---|---|
-|Syntax highlighting|Extend `SqlHighlighter` in `editor.py`; the View menu toggle persists via `QSettings`|
 |More export formats|Add menu items in `ResultsPanel._show_export_menu()` — raw data is in `_last_rows` / `_last_columns`|
-|Save in-memory to file|Add `Database.export_to_file(path)` using DuckDB's `EXPORT DATABASE`|

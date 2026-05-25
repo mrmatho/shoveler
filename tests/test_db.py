@@ -128,3 +128,45 @@ def test_checkpoint_file_db(tmp_path):
 
 def test_checkpoint_memory_db_is_noop(db):
     db.checkpoint()  # should not raise
+
+
+# ── Save as file ───────────────────────────────────────────────────────────
+
+def test_save_as_memory_db_writes_file_and_switches_mode(tmp_path):
+    db = Database()
+    db.new_memory()
+    db.execute("CREATE TABLE t (x INTEGER)")
+    db.execute("INSERT INTO t VALUES (1), (2)")
+
+    path = str(tmp_path / "saved.duckdb")
+    saved_path = db.save_as(path)
+
+    assert saved_path == path
+    assert db.mode == "file"
+    assert db.path == path
+    assert (tmp_path / "saved.duckdb").exists()
+
+    result = db.execute("SELECT COUNT(*) AS n FROM t")
+    assert result["error"] is None
+    assert result["rows"][0][0] == 2
+    db.close()
+
+
+def test_save_as_same_file_path_is_checkpoint(tmp_path):
+    path = str(tmp_path / "existing.duckdb")
+    db = Database()
+    db.open_file(path)
+    db.execute("CREATE TABLE t (x INTEGER)")
+
+    saved_path = db.save_as(path)
+
+    assert saved_path == path
+    assert db.mode == "file"
+    assert db.path == path
+    db.close()
+
+
+def test_save_as_no_connection_raises():
+    db = Database()
+    with pytest.raises(RuntimeError, match="No database connected"):
+        db.save_as("any.duckdb")
