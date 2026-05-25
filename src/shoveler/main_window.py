@@ -40,6 +40,7 @@ class MainWindow(QMainWindow):
         self._build_ui()
         self._build_menu()
         self._connect_signals()
+        self._new_memory()
 
     # ── UI construction ─────────────────────────────────────────────────────
 
@@ -198,10 +199,10 @@ class MainWindow(QMainWindow):
         self.save_as_action.setEnabled(True)
         self.statusBar().showMessage("In-memory database created", 4000)
 
-    def _save_database_as(self):
+    def _save_database_as(self) -> bool:
         if not self.db.is_connected:
             QMessageBox.information(self, "Nothing to save", "No database connected.")
-            return
+            return False
 
         default_path = self.db.path or ""
         path, _ = QFileDialog.getSaveFileName(
@@ -211,7 +212,7 @@ class MainWindow(QMainWindow):
             "DuckDB Files (*.duckdb *.db);;All Files (*)",
         )
         if not path:
-            return
+            return False
 
         if not os.path.splitext(path)[1]:
             path += ".duckdb"
@@ -222,8 +223,10 @@ class MainWindow(QMainWindow):
             self.schema_panel.refresh(self.db)
             self.setWindowTitle(f"DuckDB Workbench — {saved_path}")
             self.statusBar().showMessage(f"Saved database to {saved_path}", 4000)
+            return True
         except Exception as e:
             QMessageBox.critical(self, "Save failed", str(e))
+            return False
 
     def _checkpoint(self):
         try:
@@ -239,8 +242,34 @@ class MainWindow(QMainWindow):
             tab.editor.insertPlainText(table_name)
             tab.editor.setFocus()
 
+    def _confirm_close_in_memory(self) -> QMessageBox.StandardButton:
+        box = QMessageBox(self)
+        box.setIcon(QMessageBox.Icon.Warning)
+        box.setWindowTitle("Unsaved In-Memory Database")
+        box.setText("You are using an in-memory database.")
+        box.setInformativeText(
+            "Data will be lost when the app closes. Save the database before closing?"
+        )
+        box.setStandardButtons(
+            QMessageBox.StandardButton.Save
+            | QMessageBox.StandardButton.Discard
+            | QMessageBox.StandardButton.Cancel
+        )
+        box.setDefaultButton(QMessageBox.StandardButton.Save)
+        box.setButtonText(QMessageBox.StandardButton.Save, "Save Database As...")
+        return QMessageBox.StandardButton(box.exec())
+
     # ── Cleanup ─────────────────────────────────────────────────────────────
 
     def closeEvent(self, event):
+        if self.db.is_connected and self.db.mode == "memory":
+            choice = self._confirm_close_in_memory()
+            if choice == QMessageBox.StandardButton.Cancel:
+                event.ignore()
+                return
+            if choice == QMessageBox.StandardButton.Save and not self._save_database_as():
+                event.ignore()
+                return
+
         self.db.close()
         event.accept()
