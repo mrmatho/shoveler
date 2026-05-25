@@ -23,6 +23,9 @@ htmlcov/
 .idea/
 *.swp
 
+# Local agent instructions
+.github/copilot-instructions.md
+
 # OS
 .DS_Store
 Thumbs.db
