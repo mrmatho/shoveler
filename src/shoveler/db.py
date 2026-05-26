@@ -1,7 +1,17 @@
 import duckdb
 import os
 import time
-from typing import Literal
+from typing import Literal, TypeAlias, TypedDict
+
+
+QueryRow: TypeAlias = tuple[object, ...]
+
+
+class QueryResult(TypedDict):
+    columns: list[str]
+    rows: list[QueryRow]
+    elapsed: float
+    error: str | None
 
 
 class Database:
@@ -51,15 +61,21 @@ class Database:
         self.open_file(target_path)
         return target_path
 
-    def execute(self, sql: str) -> dict:
-        """Returns dict: columns, rows, elapsed, error"""
+    @staticmethod
+    def _build_result(
+        columns: list[str], rows: list[QueryRow], elapsed: float, error: str | None
+    ) -> QueryResult:
+        return {
+            "columns": columns,
+            "rows": rows,
+            "elapsed": elapsed,
+            "error": error,
+        }
+
+    def execute(self, sql: str) -> QueryResult:
+        """Return a query result with columns, rows, elapsed seconds, and error."""
         if not self.conn:
-            return {
-                "columns": [],
-                "rows": [],
-                "elapsed": 0.0,
-                "error": "No database connected.",
-            }
+            return self._build_result([], [], 0.0, "No database connected.")
         start = time.perf_counter()
         try:
             result = self.conn.execute(sql)
@@ -70,10 +86,10 @@ class Database:
             else:
                 columns = []
                 rows = []
-            return {"columns": columns, "rows": rows, "elapsed": elapsed, "error": None}
+            return self._build_result(columns, rows, elapsed, None)
         except Exception as e:
             elapsed = time.perf_counter() - start
-            return {"columns": [], "rows": [], "elapsed": elapsed, "error": str(e)}
+            return self._build_result([], [], elapsed, str(e))
 
     def get_tables(self) -> list[str]:
         if not self.conn:

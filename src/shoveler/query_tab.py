@@ -11,6 +11,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt, Signal
 
+from .db import QueryResult
 from .editor import SqlEditor
 from .results_panel import ResultsPanel
 from .config.text import (
@@ -162,7 +163,7 @@ class QueryTab(QWidget):
         except Exception as e:
             QMessageBox.critical(self, QUERYTAB_EXPORT_FAILED, str(e))
 
-    def show_result(self, result: dict):
+    def show_result(self, result: QueryResult):
         if result["error"]:
             self.results.show_error(result["error"], result["elapsed"])
         else:
