@@ -27,6 +27,19 @@ uv run python -m shoveler
 uv run pytest
 ```
 
+## Configuration layout
+
+Shoveler now keeps most theme and UI configuration out of the widget classes.
+
+- Theme stylesheets live in `src/shoveler/assets/themes/` as `.qss` files.
+- Structured configuration lives in `src/shoveler/config/`.
+- `theme.py` loads and normalizes app themes.
+- `syntax.py` contains SQL highlighting keywords and per-theme editor colors.
+- `ui.py` contains shared UI constants such as status colors and path thresholds.
+- `text.py` contains user-facing labels, tooltips, dialog text, and status message helpers.
+
+When adding a new theme, update both the `.qss` assets and the relevant per-theme values in `src/shoveler/config/` so editor syntax, status colors, and other theme-aware UI elements stay in sync.
+
 ## Usage
 
 - **Open File** — connect to an existing `.duckdb` or `.db` file (green indicator)
