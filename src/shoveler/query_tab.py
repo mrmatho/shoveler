@@ -11,8 +11,26 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt, Signal
 
+from .db import QueryResult
 from .editor import SqlEditor
 from .results_panel import ResultsPanel
+from .config.text import (
+    QUERYTAB_EXPORT_DEFAULT_NAME,
+    QUERYTAB_EXPORT_DIALOG_FILTER,
+    QUERYTAB_EXPORT_DIALOG_TITLE,
+    QUERYTAB_EXPORT_EMPTY_MESSAGE,
+    QUERYTAB_EXPORT_EMPTY_TITLE,
+    QUERYTAB_EXPORT_FAILED,
+    QUERYTAB_EXPORT_SQL,
+    QUERYTAB_EXPORT_SQL_TOOLTIP,
+    QUERYTAB_LOAD_DIALOG_FILTER,
+    QUERYTAB_LOAD_DIALOG_TITLE,
+    QUERYTAB_LOAD_FAILED,
+    QUERYTAB_LOAD_SQL,
+    QUERYTAB_LOAD_SQL_TOOLTIP,
+    QUERYTAB_RUN_QUERY,
+    QUERYTAB_RUN_TOOLTIP,
+)
 
 
 class QueryTab(QWidget):
@@ -30,19 +48,19 @@ class QueryTab(QWidget):
         toolbar_layout.setContentsMargins(0, 0, 0, 0)
         toolbar_layout.addStretch()
 
-        self.load_sql_btn = QPushButton("Load SQL")
+        self.load_sql_btn = QPushButton(QUERYTAB_LOAD_SQL)
         self.load_sql_btn.setFixedWidth(90)
-        self.load_sql_btn.setToolTip("Load SQL from a .sql file")
+        self.load_sql_btn.setToolTip(QUERYTAB_LOAD_SQL_TOOLTIP)
         self.load_sql_btn.clicked.connect(self._load_sql)
         toolbar_layout.addWidget(self.load_sql_btn)
 
-        self.export_sql_btn = QPushButton("Export SQL")
+        self.export_sql_btn = QPushButton(QUERYTAB_EXPORT_SQL)
         self.export_sql_btn.setFixedWidth(95)
-        self.export_sql_btn.setToolTip("Export SQL in editor to a .sql file")
+        self.export_sql_btn.setToolTip(QUERYTAB_EXPORT_SQL_TOOLTIP)
         self.export_sql_btn.clicked.connect(self._export_sql)
         toolbar_layout.addWidget(self.export_sql_btn)
 
-        self.run_btn = QPushButton("▶  Run Query")
+        self.run_btn = QPushButton(QUERYTAB_RUN_QUERY)
         self.run_btn.setFixedWidth(120)
         self.run_btn.setStyleSheet(
             """
@@ -66,7 +84,7 @@ class QueryTab(QWidget):
             }
             """
         )
-        self.run_btn.setToolTip("Run query (F5 or Ctrl+Enter). Whole query runs if no text selected.")
+        self.run_btn.setToolTip(QUERYTAB_RUN_TOOLTIP)
         self.run_btn.clicked.connect(self._on_run)
         toolbar_layout.addWidget(self.run_btn)
 
@@ -100,9 +118,9 @@ class QueryTab(QWidget):
     def open_sql_file_dialog(self) -> bool:
         path, _ = QFileDialog.getOpenFileName(
             self,
-            "Load SQL",
+            QUERYTAB_LOAD_DIALOG_TITLE,
             "",
-            "SQL Files (*.sql);;All Files (*)",
+            QUERYTAB_LOAD_DIALOG_FILTER,
         )
         if not path:
             return False
@@ -114,7 +132,7 @@ class QueryTab(QWidget):
             with open(path, "r", encoding="utf-8") as f:
                 sql = f.read()
         except Exception as e:
-            QMessageBox.critical(self, "Load failed", str(e))
+            QMessageBox.critical(self, QUERYTAB_LOAD_FAILED, str(e))
             return False
 
         self.editor.setPlainText(sql)
@@ -124,14 +142,14 @@ class QueryTab(QWidget):
     def _export_sql(self):
         sql = self.editor.toPlainText()
         if not sql.strip():
-            QMessageBox.information(self, "Nothing to export", "SQL editor is empty.")
+            QMessageBox.information(self, QUERYTAB_EXPORT_EMPTY_TITLE, QUERYTAB_EXPORT_EMPTY_MESSAGE)
             return
 
         path, _ = QFileDialog.getSaveFileName(
             self,
-            "Export SQL",
-            "query.sql",
-            "SQL Files (*.sql);;All Files (*)",
+            QUERYTAB_EXPORT_DIALOG_TITLE,
+            QUERYTAB_EXPORT_DEFAULT_NAME,
+            QUERYTAB_EXPORT_DIALOG_FILTER,
         )
         if not path:
             return
@@ -143,9 +161,9 @@ class QueryTab(QWidget):
             with open(path, "w", encoding="utf-8", newline="\n") as f:
                 f.write(sql)
         except Exception as e:
-            QMessageBox.critical(self, "Export failed", str(e))
+            QMessageBox.critical(self, QUERYTAB_EXPORT_FAILED, str(e))
 
-    def show_result(self, result: dict):
+    def show_result(self, result: QueryResult):
         if result["error"]:
             self.results.show_error(result["error"], result["elapsed"])
         else:

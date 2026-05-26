@@ -5,6 +5,7 @@ from PySide6.QtCore import QSettings
 from PySide6.QtGui import QTextDocument
 from PySide6.QtWidgets import QApplication, QMessageBox
 
+from shoveler.config.theme import AVAILABLE_THEMES, DEFAULT_THEME, load_theme_stylesheet, normalize_theme
 from shoveler.editor import SqlEditor, SqlHighlighter
 from shoveler.db_status_widget import DatabaseStatusWidget
 from shoveler.main_window import MainWindow
@@ -61,6 +62,30 @@ def test_sql_editor_line_number_gutter_width_grows_with_more_lines(qapp):
     editor.setPlainText("\n".join(f"SELECT {index};" for index in range(1, 201)))
 
     assert editor.line_number_area_width() >= initial_width
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        ("light", "light"),
+        (" DARK ", "dark"),
+        ("Vivid", "vivid"),
+        ("unknown", DEFAULT_THEME),
+        ("", DEFAULT_THEME),
+        (None, DEFAULT_THEME),
+    ],
+)
+def test_normalize_theme_handles_valid_and_invalid_values(value, expected):
+    assert normalize_theme(value) == expected
+
+
+@pytest.mark.parametrize("theme", AVAILABLE_THEMES)
+def test_load_theme_stylesheet_returns_qss_for_each_theme(theme):
+    stylesheet = load_theme_stylesheet(theme)
+
+    assert stylesheet
+    assert "QMainWindow" in stylesheet
+    assert "QPushButton" in stylesheet
 
 
 def test_query_tab_load_sql_from_path_loads_editor_contents(qapp, tmp_path):
@@ -164,6 +189,28 @@ def test_main_window_persists_dark_theme_setting(qapp, tmp_path):
     assert reloaded.theme == "dark"
     assert reloaded.dark_theme_action.isChecked() is True
     assert reloaded.light_theme_action.isChecked() is False
+
+    reloaded.close()
+
+
+def test_main_window_persists_vivid_theme_setting(qapp, tmp_path):
+    QSettings.setDefaultFormat(QSettings.Format.IniFormat)
+    QSettings.setPath(
+        QSettings.Format.IniFormat,
+        QSettings.Scope.UserScope,
+        str(tmp_path),
+    )
+
+    window = MainWindow()
+    window._set_theme("vivid")
+    window.close()
+
+    reloaded = MainWindow()
+
+    assert reloaded.theme == "vivid"
+    assert reloaded.vivid_theme_action.isChecked() is True
+    assert reloaded.light_theme_action.isChecked() is False
+    assert reloaded.dark_theme_action.isChecked() is False
 
     reloaded.close()
 

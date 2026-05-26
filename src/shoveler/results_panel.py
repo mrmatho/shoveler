@@ -14,17 +14,22 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor
 
+from .config.text import (
+    RESULTS_EXPORT_BUTTON,
+    RESULTS_EXPORT_CSV,
+    RESULTS_EXPORT_DIALOG_FILTER,
+    RESULTS_EXPORT_DIALOG_TITLE,
+    RESULTS_STATUS_EMPTY,
+)
+from .config.ui import get_results_null_colour, get_results_status_colours
+
 
 class ResultsPanel(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self._theme = "light"
-        self._null_colour = "#7d8796"
-        self._status_colours = {
-            "ok": "#2a9d2a",
-            "error": "#cc2200",
-            "neutral": "#888",
-        }
+        self._null_colour = get_results_null_colour(self._theme)
+        self._status_colours = get_results_status_colours(self._theme)
 
         # Raw data kept in sync with table display — export reads from here
         self._last_columns: list[str] = []
@@ -40,12 +45,12 @@ class ResultsPanel(QWidget):
         status_layout = QHBoxLayout(status_bar)
         status_layout.setContentsMargins(6, 0, 6, 0)
 
-        self.status_label = QLabel("No results yet")
+        self.status_label = QLabel(RESULTS_STATUS_EMPTY)
         self.status_label.setStyleSheet("font-size: 12px;")
         status_layout.addWidget(self.status_label)
         status_layout.addStretch()
 
-        self.export_btn = QPushButton("Export ▾")
+        self.export_btn = QPushButton(RESULTS_EXPORT_BUTTON)
         self.export_btn.setFixedWidth(80)
         self.export_btn.setEnabled(False)
         self.export_btn.clicked.connect(self._show_export_menu)
@@ -66,27 +71,8 @@ class ResultsPanel(QWidget):
 
     def set_theme(self, theme: str):
         self._theme = (theme or "").strip().lower()
-        if self._theme == "dark":
-            self._null_colour = "#93a2b8"
-            self._status_colours = {
-                "ok": "#7ed957",
-                "error": "#ff8b7f",
-                "neutral": "#a8b5c8",
-            }
-        elif self._theme == "vivid":
-            self._null_colour = "#9eb1ff"
-            self._status_colours = {
-                "ok": "#8dff8a",
-                "error": "#ff8ea1",
-                "neutral": "#b8c3ff",
-            }
-        else:
-            self._null_colour = "#7d8796"
-            self._status_colours = {
-                "ok": "#2a9d2a",
-                "error": "#cc2200",
-                "neutral": "#888",
-            }
+        self._null_colour = get_results_null_colour(self._theme)
+        self._status_colours = get_results_status_colours(self._theme)
 
     # ── Public interface ────────────────────────────────────────────────────
 
@@ -137,7 +123,7 @@ class ResultsPanel(QWidget):
 
     def _show_export_menu(self):
         menu = QMenu(self)
-        csv_action = menu.addAction("Export as CSV…")
+        csv_action = menu.addAction(RESULTS_EXPORT_CSV)
         chosen = menu.exec(
             self.export_btn.mapToGlobal(self.export_btn.rect().bottomLeft())
         )
@@ -146,7 +132,7 @@ class ResultsPanel(QWidget):
 
     def _export_csv(self):
         path, _ = QFileDialog.getSaveFileName(
-            self, "Export as CSV", "", "CSV Files (*.csv)"
+            self, RESULTS_EXPORT_DIALOG_TITLE, "", RESULTS_EXPORT_DIALOG_FILTER
         )
         if not path:
             return

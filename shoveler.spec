@@ -17,12 +17,17 @@ from PyInstaller.utils.hooks import collect_all
 # Without this, the packaged app fails at runtime with an ImportError on _duckdb.
 duckdb_datas, duckdb_binaries, duckdb_hiddenimports = collect_all("duckdb")
 app_icon = "src/shoveler/assets/shoveler.ico"
+theme_files = [
+    ("src/shoveler/assets/themes/light.qss", "shoveler/assets/themes"),
+    ("src/shoveler/assets/themes/dark.qss", "shoveler/assets/themes"),
+    ("src/shoveler/assets/themes/vivid.qss", "shoveler/assets/themes"),
+]
 
 a = Analysis(
     ["src/shoveler/__main__.py"],
     pathex=[],
     binaries=duckdb_binaries,
-    datas=duckdb_datas + [(app_icon, "shoveler/assets")],
+    datas=duckdb_datas + [(app_icon, "shoveler/assets")] + theme_files,
     hiddenimports=duckdb_hiddenimports,
     hookspath=[],
     hooksconfig={},

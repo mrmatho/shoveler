@@ -10,12 +10,21 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Signal, Qt
 
-
-# Colour constants — change here to restyle the indicator globally
-COLOUR_FILE   = "#2a9d2a"   # green   → file-backed database
-COLOUR_MEMORY = "#e6a817"   # amber   → in-memory (unsaved)
-COLOUR_NONE   = "#999999"   # grey    → nothing connected
-MAX_STATUS_PATH_LENGTH = 60
+from .config.text import (
+    ACTION_SAVE_DATABASE_AS,
+    DB_STATUS_CHECKPOINT,
+    DB_STATUS_CHECKPOINT_OK,
+    DB_STATUS_CHECKPOINT_TOOLTIP,
+    DB_STATUS_DISCONNECTED,
+    DB_STATUS_MEMORY,
+    DB_STATUS_MEMORY_LABEL,
+    DB_STATUS_MEMORY_WARNING,
+    DB_STATUS_OPEN,
+    DB_STATUS_OPEN_DIALOG_FILTER,
+    DB_STATUS_OPEN_DIALOG_TITLE,
+    DB_STATUS_SAVE_INLINE,
+)
+from .config.ui import DB_STATUS_COLOURS, MAX_STATUS_PATH_LENGTH, get_db_status_secondary_text
 
 
 class DatabaseStatusWidget(QFrame):
@@ -36,7 +45,7 @@ class DatabaseStatusWidget(QFrame):
     def __init__(self, parent=None):
         super().__init__(parent)
         self._theme = "light"
-        self._secondary_text_colour = "#6b7280"
+        self._secondary_text_colour = get_db_status_secondary_text(self._theme)
         self.setFrameShape(QFrame.Shape.StyledPanel)
         self.setFixedHeight(38)
 
@@ -55,7 +64,7 @@ class DatabaseStatusWidget(QFrame):
         self.db_label.setStyleSheet("font-size: 12px;")
         layout.addWidget(self.db_label)
 
-        self.save_inline_btn = QPushButton("Save Database As...")
+        self.save_inline_btn = QPushButton(DB_STATUS_SAVE_INLINE)
         self.save_inline_btn.setFixedHeight(24)
         self.save_inline_btn.setVisible(False)
         self.save_inline_btn.clicked.connect(self.save_requested.emit)
@@ -64,19 +73,19 @@ class DatabaseStatusWidget(QFrame):
         layout.addStretch()
 
         # Buttons
-        self.open_btn = QPushButton("Open DB File")
+        self.open_btn = QPushButton(DB_STATUS_OPEN)
         self.open_btn.setFixedWidth(110)
         self.open_btn.clicked.connect(self._on_open_file)
         layout.addWidget(self.open_btn)
 
-        self.memory_btn = QPushButton("New Blank DB")
+        self.memory_btn = QPushButton(DB_STATUS_MEMORY)
         self.memory_btn.setFixedWidth(105)
         self.memory_btn.clicked.connect(self.memory_requested.emit)
         layout.addWidget(self.memory_btn)
 
-        self.checkpoint_btn = QPushButton("Checkpoint")
+        self.checkpoint_btn = QPushButton(DB_STATUS_CHECKPOINT)
         self.checkpoint_btn.setFixedWidth(95)
-        self.checkpoint_btn.setToolTip("Save pending (WAL) changes to the DB file.")
+        self.checkpoint_btn.setToolTip(DB_STATUS_CHECKPOINT_TOOLTIP)
         self.checkpoint_btn.clicked.connect(self.checkpoint_requested.emit)
         layout.addWidget(self.checkpoint_btn)
 
@@ -84,12 +93,7 @@ class DatabaseStatusWidget(QFrame):
 
     def set_theme(self, theme: str):
         self._theme = (theme or "").strip().lower()
-        if self._theme == "dark":
-            self._secondary_text_colour = "#a8b5c8"
-        elif self._theme == "vivid":
-            self._secondary_text_colour = "#b8c6ff"
-        else:
-            self._secondary_text_colour = "#6b7280"
+        self._secondary_text_colour = get_db_status_secondary_text(self._theme)
 
     # ── Public state setters ────────────────────────────────────────────────
 
@@ -103,7 +107,7 @@ class DatabaseStatusWidget(QFrame):
                 f"<span style='color:{self._secondary_text_colour}'>({path})</span>"
             )
         self._apply(
-            colour=COLOUR_FILE,
+            colour=DB_STATUS_COLOURS["file"],
             text=text,
             checkpoint_enabled=True,
             show_save_inline=False,
@@ -112,11 +116,11 @@ class DatabaseStatusWidget(QFrame):
 
     def set_memory_mode(self):
         self._apply(
-            colour=COLOUR_MEMORY,
+            colour=DB_STATUS_COLOURS["memory"],
             text=(
-                "<b>In-memory</b>  "
+                f"<b>{DB_STATUS_MEMORY_LABEL}</b>  "
                 f"<span style='color:{self._secondary_text_colour}'>"
-                "(unsaved — data is lost when closed)</span>"
+                f"{DB_STATUS_MEMORY_WARNING}</span>"
             ),
             checkpoint_enabled=False,
             show_save_inline=True,
@@ -127,15 +131,15 @@ class DatabaseStatusWidget(QFrame):
         """Brief visual confirmation after a successful checkpoint."""
         current = self.db_label.text()
         # Append a transient tick — main window resets this on next open
-        if "✓" not in current:
-            self.db_label.setText(current + "  ✓")
+        if DB_STATUS_CHECKPOINT_OK not in current:
+            self.db_label.setText(current + f"  {DB_STATUS_CHECKPOINT_OK}")
 
     # ── Internals ───────────────────────────────────────────────────────────
 
     def _set_state_disconnected(self):
         self._apply(
-            colour=COLOUR_NONE,
-            text="No database connected",
+            colour=DB_STATUS_COLOURS["none"],
+            text=DB_STATUS_DISCONNECTED,
             checkpoint_enabled=False,
             show_save_inline=False,
             label_tooltip="",
@@ -159,9 +163,9 @@ class DatabaseStatusWidget(QFrame):
     def _on_open_file(self):
         path, _ = QFileDialog.getOpenFileName(
             self,
-            "Open DuckDB Database",
+            DB_STATUS_OPEN_DIALOG_TITLE,
             "",
-            "DuckDB Files (*.duckdb *.db);;All Files (*)",
+            DB_STATUS_OPEN_DIALOG_FILTER,
         )
         if path:
             self.file_opened.emit(path)
