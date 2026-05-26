@@ -1,6 +1,7 @@
 import csv
 
 from PySide6.QtWidgets import (
+    QApplication,
     QWidget,
     QVBoxLayout,
     QHBoxLayout,
@@ -16,10 +17,15 @@ from PySide6.QtGui import QColor
 
 from .config.text import (
     RESULTS_EXPORT_BUTTON,
+    RESULTS_EXPORT_ALL_CLIPBOARD,
+    RESULTS_EXPORT_ALL_CSV,
+    RESULTS_EXPORT_CLIPBOARD,
     RESULTS_EXPORT_CSV,
     RESULTS_EXPORT_DIALOG_FILTER,
     RESULTS_EXPORT_DIALOG_TITLE,
     RESULTS_STATUS_EMPTY,
+    RESULTS_EXPORT_SELECTED_CLIPBOARD,
+    RESULTS_EXPORT_SELECTED_CSV,
 )
 from .config.ui import get_results_null_colour, get_results_status_colours
 
@@ -123,14 +129,32 @@ class ResultsPanel(QWidget):
 
     def _show_export_menu(self):
         menu = QMenu(self)
-        csv_action = menu.addAction(RESULTS_EXPORT_CSV)
+        selected_csv_action = menu.addAction(RESULTS_EXPORT_SELECTED_CSV)
+        selected_clipboard_action = menu.addAction(RESULTS_EXPORT_SELECTED_CLIPBOARD)
+        all_csv_action = menu.addAction(RESULTS_EXPORT_ALL_CSV)
+        all_clipboard_action = menu.addAction(RESULTS_EXPORT_ALL_CLIPBOARD)
+
+        has_selection = self._has_selected_rows()
+        selected_csv_action.setEnabled(has_selection)
+        selected_clipboard_action.setEnabled(has_selection)
+
         chosen = menu.exec(
             self.export_btn.mapToGlobal(self.export_btn.rect().bottomLeft())
         )
-        if chosen == csv_action:
-            self._export_csv()
+        if chosen == selected_csv_action:
+            self._export_csv(selected_only=True)
+        elif chosen == selected_clipboard_action:
+            self._copy_to_clipboard(selected_only=True)
+        elif chosen == all_csv_action:
+            self._export_csv(selected_only=False)
+        elif chosen == all_clipboard_action:
+            self._copy_to_clipboard(selected_only=False)
 
-    def _export_csv(self):
+    def _export_csv(self, selected_only: bool = False):
+        export_rows = self._rows_for_export(selected_only)
+        if export_rows is None:
+            return
+
         path, _ = QFileDialog.getSaveFileName(
             self, RESULTS_EXPORT_DIALOG_TITLE, "", RESULTS_EXPORT_DIALOG_FILTER
         )
@@ -139,4 +163,35 @@ class ResultsPanel(QWidget):
         with open(path, "w", newline="", encoding="utf-8") as f:
             writer = csv.writer(f)
             writer.writerow(self._last_columns)
-            writer.writerows(self._last_rows)
+            writer.writerows(export_rows)
+
+    def _copy_to_clipboard(self, selected_only: bool = False):
+        export_rows = self._rows_for_export(selected_only)
+        if export_rows is None:
+            return
+
+        def _format_cell(value):
+            return "NULL" if value is None else str(value)
+
+        lines = ["\t".join(self._last_columns)]
+        lines.extend("\t".join(_format_cell(value) for value in row) for row in export_rows)
+        QApplication.clipboard().setText("\n".join(lines))
+
+    def _rows_for_export(self, selected_only: bool) -> list[tuple] | None:
+        if not self._last_columns:
+            return None
+
+        if not selected_only:
+            return list(self._last_rows)
+
+        selected_rows = self._selected_row_indexes()
+        return [self._last_rows[index] for index in selected_rows]
+
+    def _has_selected_rows(self) -> bool:
+        return bool(self._selected_row_indexes())
+
+    def _selected_row_indexes(self) -> list[int]:
+        selection_model = self.table.selectionModel()
+        if selection_model is None:
+            return []
+        return sorted({index.row() for index in selection_model.selectedRows()})
