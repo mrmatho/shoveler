@@ -1,10 +1,12 @@
 import duckdb
+import logging
 import os
 import time
 from typing import Literal, TypeAlias, TypedDict
 
 
 QueryRow: TypeAlias = tuple[object, ...]
+logger = logging.getLogger(__name__)
 
 
 class QueryResult(TypedDict):
@@ -72,6 +74,11 @@ class Database:
             "error": error,
         }
 
+    @staticmethod
+    def _quote_identifier(identifier: str) -> str:
+        escaped_identifier = identifier.replace('"', '""')
+        return f'"{escaped_identifier}"'
+
     def execute(self, sql: str) -> QueryResult:
         """Return a query result with columns, rows, elapsed seconds, and error."""
         if not self.conn:
@@ -98,6 +105,7 @@ class Database:
             result = self.conn.execute("SHOW TABLES").fetchall()
             return [row[0] for row in result]
         except Exception:
+            logger.exception("Failed to list tables")
             return []
 
     def get_columns(self, table: str) -> list[tuple[str, str]]:
@@ -105,9 +113,11 @@ class Database:
             return []
         try:
             # DESCRIBE returns: column_name, column_type, null, key, default, extra
-            result = self.conn.execute(f"DESCRIBE {table}").fetchall()
+            quoted_table = self._quote_identifier(table)
+            result = self.conn.execute(f"DESCRIBE {quoted_table}").fetchall()
             return [(row[0], row[1]) for row in result]
         except Exception:
+            logger.exception("Failed to describe table %r", table)
             return []
 
     def get_column_key_flags(self, table: str) -> dict[str, tuple[bool, bool]]:
@@ -143,6 +153,12 @@ class Database:
             ).fetchall()
             pk_columns = {row[0] for row in pk_result}
         except Exception:
+            logger.debug(
+                "Primary key introspection via information_schema failed for table %r; "
+                "falling back to PRAGMA table_info",
+                table,
+                exc_info=True,
+            )
             escaped_table = table.replace("'", "''")
             try:
                 pragma_result = self.conn.execute(
@@ -152,6 +168,11 @@ class Database:
                     if len(row) > 5 and row[5]:
                         pk_columns.add(row[1])
             except Exception:
+                logger.debug(
+                    "Primary key introspection fallback via PRAGMA table_info failed for table %r",
+                    table,
+                    exc_info=True,
+                )
                 pass
 
         try:
@@ -167,6 +188,11 @@ class Database:
             ).fetchall()
             fk_columns = {row[0]: row[1] for row in fk_result}
         except Exception:
+            logger.debug(
+                "Foreign key introspection failed for table %r",
+                table,
+                exc_info=True,
+            )
             pass
 
         return {
@@ -182,6 +208,7 @@ class Database:
             try:
                 self.conn.close()
             except Exception:
+                logger.debug("Failed to close existing database connection", exc_info=True)
                 pass
             self.conn = None
 
