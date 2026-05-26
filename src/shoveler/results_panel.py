@@ -11,6 +11,7 @@ from PySide6.QtWidgets import (
     QPushButton,
     QMenu,
     QFileDialog,
+    QMessageBox,
 )
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor
@@ -21,7 +22,12 @@ from .config.text import (
     RESULTS_EXPORT_CSV,
     RESULTS_EXPORT_DIALOG_FILTER,
     RESULTS_EXPORT_DIALOG_TITLE,
+    RESULTS_EXPORT_SCOPE_ALL,
+    RESULTS_EXPORT_SCOPE_CANCEL,
+    RESULTS_EXPORT_SCOPE_SELECTED,
+    RESULTS_EXPORT_SCOPE_TITLE,
     RESULTS_STATUS_EMPTY,
+    results_export_scope_message,
 )
 from .config.ui import get_results_null_colour, get_results_status_colours
 
@@ -136,6 +142,10 @@ class ResultsPanel(QWidget):
             self._copy_to_clipboard()
 
     def _export_csv(self):
+        export_rows = self._rows_for_export()
+        if export_rows is None:
+            return
+
         path, _ = QFileDialog.getSaveFileName(
             self, RESULTS_EXPORT_DIALOG_TITLE, "", RESULTS_EXPORT_DIALOG_FILTER
         )
@@ -144,15 +154,56 @@ class ResultsPanel(QWidget):
         with open(path, "w", newline="", encoding="utf-8") as f:
             writer = csv.writer(f)
             writer.writerow(self._last_columns)
-            writer.writerows(self._last_rows)
+            writer.writerows(export_rows)
 
     def _copy_to_clipboard(self):
-        if not self._last_columns:
+        export_rows = self._rows_for_export()
+        if export_rows is None:
             return
 
         def _format_cell(value):
             return "NULL" if value is None else str(value)
 
         lines = ["\t".join(self._last_columns)]
-        lines.extend("\t".join(_format_cell(value) for value in row) for row in self._last_rows)
+        lines.extend("\t".join(_format_cell(value) for value in row) for row in export_rows)
         QApplication.clipboard().setText("\n".join(lines))
+
+    def _rows_for_export(self) -> list[tuple] | None:
+        if not self._last_columns:
+            return None
+
+        selected_rows = self._selected_row_indexes()
+        if not selected_rows or len(selected_rows) == len(self._last_rows):
+            return list(self._last_rows)
+
+        scope = self._ask_export_scope(len(selected_rows), len(self._last_rows))
+        if scope == "selected":
+            return [self._last_rows[idx] for idx in selected_rows]
+        if scope == "all":
+            return list(self._last_rows)
+        return None
+
+    def _selected_row_indexes(self) -> list[int]:
+        selection_model = self.table.selectionModel()
+        if selection_model is None:
+            return []
+        return sorted({index.row() for index in selection_model.selectedRows()})
+
+    def _ask_export_scope(self, selected_count: int, total_count: int) -> str | None:
+        box = QMessageBox(self)
+        box.setWindowTitle(RESULTS_EXPORT_SCOPE_TITLE)
+        box.setText(results_export_scope_message(selected_count, total_count))
+
+        all_button = box.addButton(RESULTS_EXPORT_SCOPE_ALL, QMessageBox.ButtonRole.AcceptRole)
+        selected_button = box.addButton(
+            RESULTS_EXPORT_SCOPE_SELECTED,
+            QMessageBox.ButtonRole.YesRole,
+        )
+        box.addButton(RESULTS_EXPORT_SCOPE_CANCEL, QMessageBox.ButtonRole.RejectRole)
+
+        box.exec()
+        if box.clickedButton() == selected_button:
+            return "selected"
+        if box.clickedButton() == all_button:
+            return "all"
+        return None
