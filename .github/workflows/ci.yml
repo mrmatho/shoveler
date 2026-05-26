@@ -1,0 +1,83 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      QT_QPA_PLATFORM: offscreen
+      UV_PYTHON: "3.12"
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Install Linux GUI runtime libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes libegl1
+
+      - name: Sync dependencies
+        run: uv sync --python 3.12
+
+      - name: Run tests
+        run: uv run --python 3.12 pytest
+
+  package-smoke:
+    runs-on: windows-latest
+    env:
+      UV_PYTHON: "3.12"
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Sync dependencies
+        run: uv sync --python 3.12
+
+      - name: Build app (PyInstaller)
+        run: uv run --python 3.12 pyinstaller shoveler.spec --noconfirm --clean
+
+      - name: Verify bundled theme assets
+        shell: pwsh
+        run: |
+          $themeFiles = @(
+            "dist/Shoveler/shoveler/assets/themes/light.qss",
+            "dist/Shoveler/shoveler/assets/themes/dark.qss",
+            "dist/Shoveler/shoveler/assets/themes/vivid.qss"
+          )
+
+          foreach ($file in $themeFiles) {
+            if (-not (Test-Path -LiteralPath $file)) {
+              throw "Missing packaged theme file: $file"
+            }
+          }

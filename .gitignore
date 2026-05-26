@@ -27,6 +27,3 @@ htmlcov/
 # OS
 .DS_Store
 Thumbs.db
-
-# Github
-.github/
