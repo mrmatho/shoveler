@@ -27,28 +27,21 @@ class SqlHighlighter(QSyntaxHighlighter):
         super().__init__(document)
         self._enabled = True
 
-        keyword_format = QTextCharFormat()
-        keyword_format.setForeground(QColor("#005cc5"))
-        keyword_format.setFontWeight(QFont.Weight.Bold)
+        self._keyword_format = QTextCharFormat()
+        self._keyword_format.setFontWeight(QFont.Weight.Bold)
 
-        type_format = QTextCharFormat()
-        type_format.setForeground(QColor("#6f42c1"))
+        self._type_format = QTextCharFormat()
 
-        function_format = QTextCharFormat()
-        function_format.setForeground(QColor("#d73a49"))
+        self._function_format = QTextCharFormat()
 
-        string_format = QTextCharFormat()
-        string_format.setForeground(QColor("#22863a"))
+        self._string_format = QTextCharFormat()
 
-        number_format = QTextCharFormat()
-        number_format.setForeground(QColor("#b08800"))
+        self._number_format = QTextCharFormat()
 
-        comment_format = QTextCharFormat()
-        comment_format.setForeground(QColor("#6a737d"))
-        comment_format.setFontItalic(True)
+        self._comment_format = QTextCharFormat()
+        self._comment_format.setFontItalic(True)
 
-        identifier_format = QTextCharFormat()
-        identifier_format.setForeground(QColor("#032f62"))
+        self._identifier_format = QTextCharFormat()
 
         keywords = [
             "SELECT",
@@ -138,25 +131,72 @@ class SqlHighlighter(QSyntaxHighlighter):
 
         self._rules: list[tuple[QRegularExpression, QTextCharFormat]] = []
         self._rules.extend(
-            (QRegularExpression(rf"\b{keyword}\b", QRegularExpression.PatternOption.CaseInsensitiveOption), keyword_format)
+            (
+                QRegularExpression(
+                    rf"\b{keyword}\b",
+                    QRegularExpression.PatternOption.CaseInsensitiveOption,
+                ),
+                self._keyword_format,
+            )
             for keyword in keywords
         )
         self._rules.extend(
-            (QRegularExpression(rf"\b{type_name}\b", QRegularExpression.PatternOption.CaseInsensitiveOption), type_format)
+            (
+                QRegularExpression(
+                    rf"\b{type_name}\b",
+                    QRegularExpression.PatternOption.CaseInsensitiveOption,
+                ),
+                self._type_format,
+            )
             for type_name in type_names
         )
         self._rules.extend(
-            (QRegularExpression(rf"\b{function}\b", QRegularExpression.PatternOption.CaseInsensitiveOption), function_format)
+            (
+                QRegularExpression(
+                    rf"\b{function}\b",
+                    QRegularExpression.PatternOption.CaseInsensitiveOption,
+                ),
+                self._function_format,
+            )
             for function in functions
         )
         self._rules.extend(
             [
-                (QRegularExpression(r"'([^']|'')*'"), string_format),
-                (QRegularExpression(r'"[^"]+"'), identifier_format),
-                (QRegularExpression(r"\b\d+(?:\.\d+)?\b"), number_format),
-                (QRegularExpression(r"--[^\n]*"), comment_format),
+                (QRegularExpression(r"'([^']|'')*'"), self._string_format),
+                (QRegularExpression(r'"[^"]+"'), self._identifier_format),
+                (QRegularExpression(r"\b\d+(?:\.\d+)?\b"), self._number_format),
+                (QRegularExpression(r"--[^\n]*"), self._comment_format),
             ]
         )
+        self.set_theme("light")
+
+    def set_theme(self, theme: str):
+        normalized = (theme or "").strip().lower()
+        if normalized == "dark":
+            self._keyword_format.setForeground(QColor("#66b7ff"))
+            self._type_format.setForeground(QColor("#c39aff"))
+            self._function_format.setForeground(QColor("#ff8b93"))
+            self._string_format.setForeground(QColor("#edb211"))
+            self._number_format.setForeground(QColor("#e4b763"))
+            self._comment_format.setForeground(QColor("#92a2b7"))
+            self._identifier_format.setForeground(QColor("#88c8ff"))
+        elif normalized == "vivid":
+            self._keyword_format.setForeground(QColor("#70e6ff"))
+            self._type_format.setForeground(QColor("#ff9ff3"))
+            self._function_format.setForeground(QColor("#ff857a"))
+            self._string_format.setForeground(QColor("#7dff98"))
+            self._number_format.setForeground(QColor("#ffd86b"))
+            self._comment_format.setForeground(QColor("#9cc0ff"))
+            self._identifier_format.setForeground(QColor("#b693ff"))
+        else:
+            self._keyword_format.setForeground(QColor("#005cc5"))
+            self._type_format.setForeground(QColor("#6f42c1"))
+            self._function_format.setForeground(QColor("#d73a49"))
+            self._string_format.setForeground(QColor("#22863a"))
+            self._number_format.setForeground(QColor("#b08800"))
+            self._comment_format.setForeground(QColor("#6a737d"))
+            self._identifier_format.setForeground(QColor("#032f62"))
+        self.rehighlight()
 
     @property
     def is_enabled(self) -> bool:
@@ -211,10 +251,16 @@ class SqlEditor(QPlainTextEdit):
         self._highlighter.set_enabled(enabled)
 
     def set_theme(self, theme: str):
-        if (theme or "").strip().lower() == "dark":
+        self._highlighter.set_theme(theme)
+        normalized = (theme or "").strip().lower()
+        if normalized == "dark":
             self._line_number_bg = QColor("#242f40")
             self._line_number_fg = QColor("#8fa1b7")
             self._line_number_border = QColor("#3b4659")
+        elif normalized == "vivid":
+            self._line_number_bg = QColor("#2c2152")
+            self._line_number_fg = QColor("#c4d4ff")
+            self._line_number_border = QColor("#5d54a8")
         else:
             self._line_number_bg = QColor("#edf3fb")
             self._line_number_fg = QColor("#70839a")

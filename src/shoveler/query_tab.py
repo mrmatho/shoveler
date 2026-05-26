@@ -158,3 +158,4 @@ class QueryTab(QWidget):
 
     def set_theme(self, theme: str):
         self.editor.set_theme(theme)
+        self.results.set_theme(theme)
