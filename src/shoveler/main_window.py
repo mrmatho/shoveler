@@ -17,427 +17,51 @@ from .db import Database
 from .db_status_widget import DatabaseStatusWidget
 from .schema_panel import SchemaPanel
 from .query_tab import QueryTab
+from .config.text import (
+    ACTION_OPEN_SQL,
+    ACTION_SAVE_DATABASE_AS,
+    ACTION_SYNTAX_HIGHLIGHTING,
+    ACTION_THEME_DARK,
+    ACTION_THEME_LIGHT,
+    ACTION_THEME_VIVID,
+    CHECKPOINT_FAILED_TITLE,
+    MENU_FILE,
+    MENU_THEME,
+    MENU_VIEW,
+    NEW_TAB_BUTTON_LABEL,
+    NEW_TAB_BUTTON_TOOLTIP,
+    OPEN_FILE_ERROR_TITLE,
+    SAVE_DIALOG_FILTER,
+    SAVE_DIALOG_TITLE,
+    SAVE_FAILED_TITLE,
+    SAVE_NOTHING_MESSAGE,
+    SAVE_NOTHING_TITLE,
+    STATUS_READY,
+    STATUS_CHECKPOINT_COMPLETE,
+    STATUS_IN_MEMORY_CREATED,
+    STATUS_SQL_FILE_LOADED,
+    UNSAVED_MEMORY_INFO,
+    UNSAVED_MEMORY_TEXT,
+    UNSAVED_MEMORY_TITLE,
+    WINDOW_TITLE_BASE,
+    status_opened,
+    status_query_error,
+    status_query_ok,
+    status_saved,
+    status_syntax_highlighting,
+    status_theme_set,
+    status_working_directory_set,
+    tab_title,
+    window_title_in_memory,
+    window_title_with_path,
+)
+from .config.theme import DEFAULT_THEME, load_theme_stylesheet, normalize_theme
 
 
 class MainWindow(QMainWindow):
     _SYNTAX_HIGHLIGHTING_KEY = "editor/syntax_highlighting_enabled"
     _THEME_KEY = "ui/theme"
     _WORKING_DIRECTORY_KEY = "files/working_directory"
-    _LIGHT_THEME_STYLESHEET = """
-    QMainWindow {
-        background-color: #f4f7fb;
-    }
-
-    QWidget {
-        color: #1f2937;
-    }
-
-    QMenuBar {
-        background-color: #f4f7fb;
-        border-bottom: 1px solid #d7deea;
-    }
-
-    QMenuBar::item {
-        background: transparent;
-        padding: 4px 8px;
-    }
-
-    QMenuBar::item:selected {
-        background-color: #eaf0f8;
-        border-radius: 4px;
-    }
-
-    QMenu {
-        background-color: #ffffff;
-        border: 1px solid #d7deea;
-    }
-
-    QMenu::item:selected {
-        background-color: #eaf0f8;
-    }
-
-    QStatusBar {
-        background-color: #eef3f9;
-        border-top: 1px solid #d7deea;
-    }
-
-    QDialog,
-    QMessageBox,
-    QInputDialog {
-        background-color: #f7faff;
-        color: #1f2937;
-    }
-
-    QToolTip {
-        background-color: #ffffff;
-        color: #1f2937;
-        border: 1px solid #d7deea;
-        padding: 4px;
-    }
-
-    QPlainTextEdit,
-    QTableWidget,
-    QTreeWidget,
-    QListWidget,
-    QLineEdit {
-        background-color: #ffffff;
-        border: 1px solid #d7deea;
-        border-radius: 4px;
-        selection-background-color: #d8e7fb;
-    }
-
-    QAbstractItemView {
-        background-color: #ffffff;
-        alternate-background-color: #f4f8ff;
-        color: #1f2937;
-        gridline-color: #d7deea;
-        selection-background-color: #d8e7fb;
-        selection-color: #1f2937;
-    }
-
-    QHeaderView::section {
-        background-color: #edf3fb;
-        color: #475569;
-        border: 1px solid #d7deea;
-        padding: 2px 4px;
-    }
-
-    QTableCornerButton::section {
-        background-color: #edf3fb;
-        border: 1px solid #d7deea;
-    }
-
-    QTabWidget::pane {
-        border: 1px solid #d7deea;
-        background-color: #f8fbff;
-    }
-
-    QTabBar::tab {
-        background-color: #eaf0f8;
-        border: 1px solid #d7deea;
-        border-bottom: none;
-        border-top-left-radius: 5px;
-        border-top-right-radius: 5px;
-        padding: 5px 20px 5px 10px;
-        margin-right: 2px;
-    }
-
-    QTabBar::close-button {
-        subcontrol-origin: padding;
-        subcontrol-position: right;
-        right: 4px;
-    }
-
-    QTabBar::tab:selected {
-        background-color: #ffffff;
-    }
-
-    QPushButton {
-        background-color: #f9fbff;
-        border: 1px solid #ccd6e3;
-        border-radius: 5px;
-        padding: 4px 10px;
-    }
-
-    QPushButton:hover {
-        background-color: #edf3fb;
-    }
-
-    QPushButton:pressed {
-        background-color: #e2ebf7;
-    }
-
-    QPushButton:disabled {
-        color: #8a96a8;
-        background-color: #f1f4f9;
-        border-color: #d7deea;
-    }
-
-    QSplitter::handle {
-        background-color: #dfe6f1;
-    }
-
-    QSplitter::handle:hover {
-        background-color: #c8d5e8;
-    }
-    """
-    _DARK_THEME_STYLESHEET = """
-    QMainWindow {
-        background-color: #1e2430;
-    }
-
-    QWidget {
-        color: #d9e2ef;
-    }
-
-    QMenuBar {
-        background-color: #1e2430;
-        border-bottom: 1px solid #384457;
-    }
-
-    QMenuBar::item {
-        background: transparent;
-        padding: 4px 8px;
-    }
-
-    QMenuBar::item:selected {
-        background-color: #2b3545;
-        border-radius: 4px;
-    }
-
-    QMenu {
-        background-color: #252d3a;
-        border: 1px solid #3b4659;
-    }
-
-    QMenu::item:selected {
-        background-color: #334156;
-    }
-
-    QStatusBar {
-        background-color: #202938;
-        border-top: 1px solid #384457;
-    }
-
-    QDialog,
-    QMessageBox,
-    QInputDialog {
-        background-color: #252d3a;
-        color: #d9e2ef;
-    }
-
-    QToolTip {
-        background-color: #2b3545;
-        color: #d9e2ef;
-        border: 1px solid #46556d;
-        padding: 4px;
-    }
-
-    QPlainTextEdit,
-    QTableWidget,
-    QTreeWidget,
-    QListWidget,
-    QLineEdit {
-        background-color: #1f2734;
-        border: 1px solid #3b4659;
-        border-radius: 4px;
-        selection-background-color: #38506f;
-    }
-
-    QAbstractItemView {
-        background-color: #1f2734;
-        alternate-background-color: #232d3d;
-        color: #d9e2ef;
-        gridline-color: #303d51;
-        selection-background-color: #38506f;
-        selection-color: #f2f6fc;
-    }
-
-    QHeaderView::section {
-        background-color: #273143;
-        color: #c7d2e3;
-        border: 1px solid #3b4659;
-        padding: 2px 4px;
-    }
-
-    QTableCornerButton::section {
-        background-color: #273143;
-        border: 1px solid #3b4659;
-    }
-
-    QTabWidget::pane {
-        border: 1px solid #3b4659;
-        background-color: #232c3b;
-    }
-
-    QTabBar::tab {
-        background-color: #2b3545;
-        border: 1px solid #3b4659;
-        border-bottom: none;
-        border-top-left-radius: 5px;
-        border-top-right-radius: 5px;
-        padding: 5px 20px 5px 10px;
-        margin-right: 2px;
-    }
-
-    QTabBar::close-button {
-        subcontrol-origin: padding;
-        subcontrol-position: right;
-        right: 4px;
-    }
-
-    QTabBar::tab:selected {
-        background-color: #1f2734;
-    }
-
-    QPushButton {
-        background-color: #2b3647;
-        border: 1px solid #46556d;
-        border-radius: 5px;
-        padding: 4px 10px;
-    }
-
-    QPushButton:hover {
-        background-color: #334156;
-    }
-
-    QPushButton:pressed {
-        background-color: #3a4a63;
-    }
-
-    QPushButton:disabled {
-        color: #8594aa;
-        background-color: #252d3a;
-        border-color: #3b4659;
-    }
-
-    QSplitter::handle {
-        background-color: #3b4659;
-    }
-
-    QSplitter::handle:hover {
-        background-color: #4a5a72;
-    }
-    """
-    _VIVID_THEME_STYLESHEET = """
-    QMainWindow {
-        background-color: #120d1f;
-    }
-
-    QWidget {
-        color: #f6f3ff;
-    }
-
-    QMenuBar {
-        background-color: #1b1330;
-        border-bottom: 1px solid #6934c9;
-    }
-
-    QMenuBar::item {
-        background: transparent;
-        padding: 4px 8px;
-    }
-
-    QMenuBar::item:selected {
-        background-color: #3a2171;
-        border-radius: 4px;
-    }
-
-    QMenu {
-        background-color: #26164a;
-        border: 1px solid #7b3cff;
-    }
-
-    QMenu::item:selected {
-        background-color: #5128a1;
-    }
-
-    QStatusBar {
-        background-color: #1b1330;
-        border-top: 1px solid #6934c9;
-    }
-
-    QDialog,
-    QMessageBox,
-    QInputDialog {
-        background-color: #26164a;
-        color: #f6f3ff;
-    }
-
-    QToolTip {
-        background-color: #3a2171;
-        color: #f8f9ff;
-        border: 1px solid #9d67ff;
-        padding: 4px;
-    }
-
-    QPlainTextEdit,
-    QTableWidget,
-    QTreeWidget,
-    QListWidget,
-    QLineEdit {
-        background-color: #1a1e4f;
-        border: 1px solid #5b69ff;
-        border-radius: 4px;
-        selection-background-color: #ff3fa4;
-        selection-color: #ffffff;
-    }
-
-    QAbstractItemView {
-        background-color: #1a1e4f;
-        alternate-background-color: #20265f;
-        color: #f6f3ff;
-        gridline-color: #4658cc;
-        selection-background-color: #ff3fa4;
-        selection-color: #ffffff;
-    }
-
-    QHeaderView::section {
-        background-color: #2d2b73;
-        color: #f6f3ff;
-        border: 1px solid #5b69ff;
-        padding: 2px 4px;
-    }
-
-    QTableCornerButton::section {
-        background-color: #2d2b73;
-        border: 1px solid #5b69ff;
-    }
-
-    QTabWidget::pane {
-        border: 1px solid #5b69ff;
-        background-color: #201f5b;
-    }
-
-    QTabBar::tab {
-        background-color: #36257d;
-        border: 1px solid #5b69ff;
-        border-bottom: none;
-        border-top-left-radius: 5px;
-        border-top-right-radius: 5px;
-        padding: 5px 20px 5px 10px;
-        margin-right: 2px;
-    }
-
-    QTabBar::close-button {
-        subcontrol-origin: padding;
-        subcontrol-position: right;
-        right: 4px;
-    }
-
-    QTabBar::tab:selected {
-        background-color: #1a1e4f;
-    }
-
-    QPushButton {
-        background-color: #2f2a76;
-        border: 1px solid #6b7fff;
-        border-radius: 5px;
-        padding: 4px 10px;
-    }
-
-    QPushButton:hover {
-        background-color: #4435a1;
-    }
-
-    QPushButton:pressed {
-        background-color: #5d3ccd;
-    }
-
-    QPushButton:disabled {
-        color: #aaa7c8;
-        background-color: #2a2350;
-        border-color: #4f4688;
-    }
-
-    QSplitter::handle {
-        background-color: #5b69ff;
-    }
-
-    QSplitter::handle:hover {
-        background-color: #7b86ff;
-    }
-    """
 
     def __init__(self):
         super().__init__()
@@ -452,7 +76,7 @@ class MainWindow(QMainWindow):
             self._SYNTAX_HIGHLIGHTING_KEY, True
         )
         self.theme = self._read_theme_setting()
-        self.setWindowTitle("Shoveler: Duck DB Workbench")
+        self.setWindowTitle(WINDOW_TITLE_BASE)
         self.resize(1200, 720)
 
         self._build_ui()
@@ -489,9 +113,9 @@ class MainWindow(QMainWindow):
         self.tab_widget.tabCloseRequested.connect(self._close_tab)
 
         # "+" button in the tab bar corner
-        add_tab_btn = QPushButton("+")
+        add_tab_btn = QPushButton(NEW_TAB_BUTTON_LABEL)
         add_tab_btn.setFixedSize(26, 26)
-        add_tab_btn.setToolTip("New query tab")
+        add_tab_btn.setToolTip(NEW_TAB_BUTTON_TOOLTIP)
         add_tab_btn.clicked.connect(self._add_tab)
         self.tab_widget.setCornerWidget(add_tab_btn, Qt.Corner.TopRightCorner)
 
@@ -503,28 +127,28 @@ class MainWindow(QMainWindow):
         root.addWidget(splitter)
 
         # Qt status bar for transient messages
-        self.statusBar().showMessage("Ready")
+        self.statusBar().showMessage(STATUS_READY)
 
         # Start with one blank query tab
         self._add_tab()
 
     def _build_menu(self):
-        file_menu = self.menuBar().addMenu("&File")
+        file_menu = self.menuBar().addMenu(MENU_FILE)
 
-        self.open_sql_action = QAction("Open SQL...", self)
+        self.open_sql_action = QAction(ACTION_OPEN_SQL, self)
         self.open_sql_action.setShortcut("Ctrl+O")
         self.open_sql_action.triggered.connect(self._open_sql_file)
         file_menu.addAction(self.open_sql_action)
 
-        self.save_as_action = QAction("Save Database As...", self)
+        self.save_as_action = QAction(ACTION_SAVE_DATABASE_AS, self)
         self.save_as_action.setShortcut("Ctrl+Shift+S")
         self.save_as_action.setEnabled(False)
         self.save_as_action.triggered.connect(self._save_database_as)
         file_menu.addAction(self.save_as_action)
 
-        view_menu = self.menuBar().addMenu("&View")
+        view_menu = self.menuBar().addMenu(MENU_VIEW)
 
-        self.syntax_highlighting_action = QAction("Syntax highlighting", self)
+        self.syntax_highlighting_action = QAction(ACTION_SYNTAX_HIGHLIGHTING, self)
         self.syntax_highlighting_action.setCheckable(True)
         self.syntax_highlighting_action.setChecked(self.syntax_highlighting_enabled)
         self.syntax_highlighting_action.toggled.connect(
@@ -532,23 +156,23 @@ class MainWindow(QMainWindow):
         )
         view_menu.addAction(self.syntax_highlighting_action)
 
-        theme_menu = view_menu.addMenu("Theme")
+        theme_menu = view_menu.addMenu(MENU_THEME)
         self.theme_action_group = QActionGroup(self)
         self.theme_action_group.setExclusive(True)
 
-        self.light_theme_action = QAction("Light", self)
+        self.light_theme_action = QAction(ACTION_THEME_LIGHT, self)
         self.light_theme_action.setCheckable(True)
         self.light_theme_action.triggered.connect(lambda: self._set_theme("light"))
         theme_menu.addAction(self.light_theme_action)
         self.theme_action_group.addAction(self.light_theme_action)
 
-        self.dark_theme_action = QAction("Dark", self)
+        self.dark_theme_action = QAction(ACTION_THEME_DARK, self)
         self.dark_theme_action.setCheckable(True)
         self.dark_theme_action.triggered.connect(lambda: self._set_theme("dark"))
         theme_menu.addAction(self.dark_theme_action)
         self.theme_action_group.addAction(self.dark_theme_action)
 
-        self.vivid_theme_action = QAction("Vivid", self)
+        self.vivid_theme_action = QAction(ACTION_THEME_VIVID, self)
         self.vivid_theme_action.setCheckable(True)
         self.vivid_theme_action.triggered.connect(lambda: self._set_theme("vivid"))
         theme_menu.addAction(self.vivid_theme_action)
@@ -582,23 +206,19 @@ class MainWindow(QMainWindow):
 
     def _read_theme_setting(self) -> str:
         value = self.settings.value(self._THEME_KEY, "light")
-        if isinstance(value, str) and value.strip().lower() in {"light", "dark", "vivid"}:
-            return value.strip().lower()
-        return "light"
+        if isinstance(value, str):
+            return normalize_theme(value)
+        return DEFAULT_THEME
 
     def _set_theme(self, theme: str, persist: bool = True, show_message: bool = True):
-        normalized = (theme or "").strip().lower()
-        if normalized not in {"light", "dark", "vivid"}:
-            normalized = "light"
+        normalized = normalize_theme(theme)
+        self.setStyleSheet(load_theme_stylesheet(normalized))
 
         if normalized == "dark":
-            self.setStyleSheet(self._DARK_THEME_STYLESHEET)
             self.dark_theme_action.setChecked(True)
         elif normalized == "vivid":
-            self.setStyleSheet(self._VIVID_THEME_STYLESHEET)
             self.vivid_theme_action.setChecked(True)
         else:
-            self.setStyleSheet(self._LIGHT_THEME_STYLESHEET)
             self.light_theme_action.setChecked(True)
 
         self.theme = normalized
@@ -614,7 +234,7 @@ class MainWindow(QMainWindow):
             self.settings.sync()
 
         if show_message:
-            self.statusBar().showMessage(f"Theme set to {self.theme}", 2000)
+            self.statusBar().showMessage(status_theme_set(self.theme), 2000)
 
     def _set_syntax_highlighting_enabled(self, enabled: bool):
         self.syntax_highlighting_enabled = bool(enabled)
@@ -628,7 +248,7 @@ class MainWindow(QMainWindow):
             if isinstance(tab, QueryTab):
                 tab.set_syntax_highlighting_enabled(self.syntax_highlighting_enabled)
         state = "enabled" if self.syntax_highlighting_enabled else "disabled"
-        self.statusBar().showMessage(f"Syntax highlighting {state}", 2000)
+        self.statusBar().showMessage(status_syntax_highlighting(state), 2000)
 
     # ── Tab management ──────────────────────────────────────────────────────
 
@@ -637,7 +257,7 @@ class MainWindow(QMainWindow):
         tab = QueryTab(syntax_highlighting_enabled=self.syntax_highlighting_enabled)
         tab.set_theme(self.theme)
         tab.run_requested.connect(self._run_query)
-        idx = self.tab_widget.addTab(tab, f"Query {n}")
+        idx = self.tab_widget.addTab(tab, tab_title(n))
         self.tab_widget.setCurrentIndex(idx)
         return tab
 
@@ -663,13 +283,10 @@ class MainWindow(QMainWindow):
         if self.db.is_connected:
             self.schema_panel.refresh(self.db)
         if result["error"]:
-            self.statusBar().showMessage(f"Error: {result['error']}", 5000)
+            self.statusBar().showMessage(status_query_error(result["error"]), 5000)
         else:
             rows = len(result["rows"])
-            word = "row" if rows == 1 else "rows"
-            self.statusBar().showMessage(
-                f"{rows} {word}  ·  {result['elapsed'] * 1000:.1f} ms", 4000
-            )
+            self.statusBar().showMessage(status_query_ok(rows, result["elapsed"]), 4000)
 
     # ── Database actions ────────────────────────────────────────────────────
 
@@ -679,18 +296,18 @@ class MainWindow(QMainWindow):
             return
 
         if tab.open_sql_file_dialog():
-            self.statusBar().showMessage("SQL file loaded", 3000)
+            self.statusBar().showMessage(STATUS_SQL_FILE_LOADED, 3000)
 
     def _open_file(self, path: str):
         try:
             self.db.open_file(path)
             self.db_status.set_file_mode(path)
             self.schema_panel.refresh(self.db)
-            self.setWindowTitle(f"Shoveler: Duck DB Workbench — {path}")
+            self.setWindowTitle(window_title_with_path(path))
             self.save_as_action.setEnabled(True)
-            self.statusBar().showMessage(f"Opened {path}", 4000)
+            self.statusBar().showMessage(status_opened(path), 4000)
         except Exception as e:
-            QMessageBox.critical(self, "Could not open file", str(e))
+            QMessageBox.critical(self, OPEN_FILE_ERROR_TITLE, str(e))
 
     def _new_memory(self):
         if self._should_confirm_close_in_memory():
@@ -703,21 +320,21 @@ class MainWindow(QMainWindow):
         self.db.new_memory()
         self.db_status.set_memory_mode()
         self.schema_panel.refresh(self.db)
-        self.setWindowTitle("Shoveler: Duck DB Workbench — In-Memory")
+        self.setWindowTitle(window_title_in_memory())
         self.save_as_action.setEnabled(True)
-        self.statusBar().showMessage("In-memory database created", 4000)
+        self.statusBar().showMessage(STATUS_IN_MEMORY_CREATED, 4000)
 
     def _save_database_as(self) -> bool:
         if not self.db.is_connected:
-            QMessageBox.information(self, "Nothing to save", "No database connected.")
+            QMessageBox.information(self, SAVE_NOTHING_TITLE, SAVE_NOTHING_MESSAGE)
             return False
 
         default_path = self.db.path or ""
         path, _ = QFileDialog.getSaveFileName(
             self,
-            "Save DuckDB Database As",
+            SAVE_DIALOG_TITLE,
             default_path,
-            "DuckDB Files (*.duckdb *.db);;All Files (*)",
+            SAVE_DIALOG_FILTER,
         )
         if not path:
             return False
@@ -729,20 +346,20 @@ class MainWindow(QMainWindow):
             saved_path = self.db.save_as(path)
             self.db_status.set_file_mode(saved_path)
             self.schema_panel.refresh(self.db)
-            self.setWindowTitle(f"Shoveler: Duck DB Workbench — {saved_path}")
-            self.statusBar().showMessage(f"Saved database to {saved_path}", 4000)
+            self.setWindowTitle(window_title_with_path(saved_path))
+            self.statusBar().showMessage(status_saved(saved_path), 4000)
             return True
         except Exception as e:
-            QMessageBox.critical(self, "Save failed", str(e))
+            QMessageBox.critical(self, SAVE_FAILED_TITLE, str(e))
             return False
 
     def _checkpoint(self):
         try:
             self.db.checkpoint()
             self.db_status.notify_checkpoint_ok()
-            self.statusBar().showMessage("Checkpoint complete", 3000)
+            self.statusBar().showMessage(STATUS_CHECKPOINT_COMPLETE, 3000)
         except Exception as e:
-            QMessageBox.critical(self, "Checkpoint failed", str(e))
+            QMessageBox.critical(self, CHECKPOINT_FAILED_TITLE, str(e))
 
     def _insert_table_name(self, table_name: str):
         tab = self._current_tab()
@@ -753,7 +370,7 @@ class MainWindow(QMainWindow):
     def _on_working_directory_changed(self, path: str):
         self.settings.setValue(self._WORKING_DIRECTORY_KEY, path)
         self.settings.sync()
-        self.statusBar().showMessage(f"Working directory set to {path}", 4000)
+        self.statusBar().showMessage(status_working_directory_set(path), 4000)
 
     def _restore_working_directory(self):
         saved = self.settings.value(self._WORKING_DIRECTORY_KEY, "")
@@ -773,18 +390,16 @@ class MainWindow(QMainWindow):
     def _confirm_close_in_memory(self) -> QMessageBox.StandardButton:
         box = QMessageBox(self)
         box.setIcon(QMessageBox.Icon.Warning)
-        box.setWindowTitle("Unsaved In-Memory Database")
-        box.setText("You are using an in-memory database.")
-        box.setInformativeText(
-            "Data will be lost when the app closes. Save the database before closing?"
-        )
+        box.setWindowTitle(UNSAVED_MEMORY_TITLE)
+        box.setText(UNSAVED_MEMORY_TEXT)
+        box.setInformativeText(UNSAVED_MEMORY_INFO)
         box.setStandardButtons(
             QMessageBox.StandardButton.Save
             | QMessageBox.StandardButton.Discard
             | QMessageBox.StandardButton.Cancel
         )
         box.setDefaultButton(QMessageBox.StandardButton.Save)
-        box.setButtonText(QMessageBox.StandardButton.Save, "Save Database As...")
+        box.setButtonText(QMessageBox.StandardButton.Save, ACTION_SAVE_DATABASE_AS)
         return QMessageBox.StandardButton(box.exec())
 
     def _should_confirm_close_in_memory(self) -> bool:

@@ -9,6 +9,15 @@ from PySide6.QtGui import (
 )
 from PySide6.QtCore import QRegularExpression, QRect, QSize, Signal, Qt
 
+from .config.syntax import (
+    SQL_FUNCTIONS,
+    SQL_KEYWORDS,
+    SQL_TYPE_NAMES,
+    get_line_number_palette,
+    get_syntax_palette,
+)
+from .config.text import EDITOR_PLACEHOLDER
+
 
 class LineNumberArea(QWidget):
     def __init__(self, editor: "SqlEditor"):
@@ -43,92 +52,6 @@ class SqlHighlighter(QSyntaxHighlighter):
 
         self._identifier_format = QTextCharFormat()
 
-        keywords = [
-            "SELECT",
-            "FROM",
-            "WHERE",
-            "GROUP",
-            "BY",
-            "ORDER",
-            "HAVING",
-            "LIMIT",
-            "OFFSET",
-            "JOIN",
-            "INNER",
-            "LEFT",
-            "RIGHT",
-            "FULL",
-            "OUTER",
-            "CROSS",
-            "ON",
-            "AS",
-            "WITH",
-            "UNION",
-            "ALL",
-            "DISTINCT",
-            "INSERT",
-            "INTO",
-            "VALUES",
-            "UPDATE",
-            "SET",
-            "DELETE",
-            "CREATE",
-            "ALTER",
-            "DROP",
-            "TABLE",
-            "VIEW",
-            "INDEX",
-            "REPLACE",
-            "OR",
-            "AND",
-            "NOT",
-            "NULL",
-            "IS",
-            "LIKE",
-            "IN",
-            "BETWEEN",
-            "CASE",
-            "WHEN",
-            "THEN",
-            "ELSE",
-            "END",
-            "EXISTS",
-            "PRIMARY",
-            "KEY",
-            "FOREIGN",
-            "REFERENCES",
-            "DEFAULT",
-            "CHECK",
-        ]
-        type_names = [
-            "INTEGER",
-            "BIGINT",
-            "SMALLINT",
-            "DOUBLE",
-            "DECIMAL",
-            "NUMERIC",
-            "REAL",
-            "BOOLEAN",
-            "VARCHAR",
-            "TEXT",
-            "TIMESTAMP",
-            "DATE",
-            "TIME",
-            "BLOB",
-        ]
-        functions = [
-            "COUNT",
-            "SUM",
-            "AVG",
-            "MIN",
-            "MAX",
-            "COALESCE",
-            "ROUND",
-            "CAST",
-            "NOW",
-            "DATE_TRUNC",
-        ]
-
         self._rules: list[tuple[QRegularExpression, QTextCharFormat]] = []
         self._rules.extend(
             (
@@ -138,7 +61,7 @@ class SqlHighlighter(QSyntaxHighlighter):
                 ),
                 self._keyword_format,
             )
-            for keyword in keywords
+            for keyword in SQL_KEYWORDS
         )
         self._rules.extend(
             (
@@ -148,7 +71,7 @@ class SqlHighlighter(QSyntaxHighlighter):
                 ),
                 self._type_format,
             )
-            for type_name in type_names
+            for type_name in SQL_TYPE_NAMES
         )
         self._rules.extend(
             (
@@ -158,7 +81,7 @@ class SqlHighlighter(QSyntaxHighlighter):
                 ),
                 self._function_format,
             )
-            for function in functions
+            for function in SQL_FUNCTIONS
         )
         self._rules.extend(
             [
@@ -171,31 +94,14 @@ class SqlHighlighter(QSyntaxHighlighter):
         self.set_theme("light")
 
     def set_theme(self, theme: str):
-        normalized = (theme or "").strip().lower()
-        if normalized == "dark":
-            self._keyword_format.setForeground(QColor("#66b7ff"))
-            self._type_format.setForeground(QColor("#c39aff"))
-            self._function_format.setForeground(QColor("#ff8b93"))
-            self._string_format.setForeground(QColor("#edb211"))
-            self._number_format.setForeground(QColor("#e4b763"))
-            self._comment_format.setForeground(QColor("#92a2b7"))
-            self._identifier_format.setForeground(QColor("#88c8ff"))
-        elif normalized == "vivid":
-            self._keyword_format.setForeground(QColor("#70e6ff"))
-            self._type_format.setForeground(QColor("#ff9ff3"))
-            self._function_format.setForeground(QColor("#ff857a"))
-            self._string_format.setForeground(QColor("#7dff98"))
-            self._number_format.setForeground(QColor("#ffd86b"))
-            self._comment_format.setForeground(QColor("#9cc0ff"))
-            self._identifier_format.setForeground(QColor("#b693ff"))
-        else:
-            self._keyword_format.setForeground(QColor("#005cc5"))
-            self._type_format.setForeground(QColor("#6f42c1"))
-            self._function_format.setForeground(QColor("#d73a49"))
-            self._string_format.setForeground(QColor("#22863a"))
-            self._number_format.setForeground(QColor("#b08800"))
-            self._comment_format.setForeground(QColor("#6a737d"))
-            self._identifier_format.setForeground(QColor("#032f62"))
+        palette = get_syntax_palette(theme)
+        self._keyword_format.setForeground(QColor(palette["keyword"]))
+        self._type_format.setForeground(QColor(palette["type"]))
+        self._function_format.setForeground(QColor(palette["function"]))
+        self._string_format.setForeground(QColor(palette["string"]))
+        self._number_format.setForeground(QColor(palette["number"]))
+        self._comment_format.setForeground(QColor(palette["comment"]))
+        self._identifier_format.setForeground(QColor(palette["identifier"]))
         self.rehighlight()
 
     @property
@@ -230,14 +136,12 @@ class SqlEditor(QPlainTextEdit):
         font = QFont("Courier New", 11)
         font.setStyleHint(QFont.StyleHint.Monospace)
         self.setFont(font)
-        self.setPlaceholderText(
-            "Enter SQL here and press F5 or Ctrl+Enter to run.\n"
-            "Select part of your query to run only that selection."
-        )
+        self.setPlaceholderText(EDITOR_PLACEHOLDER)
         self.setTabStopDistance(40)
-        self._line_number_bg = QColor("#edf3fb")
-        self._line_number_fg = QColor("#70839a")
-        self._line_number_border = QColor("#d7deea")
+        line_number_palette = get_line_number_palette("light")
+        self._line_number_bg = QColor(line_number_palette["background"])
+        self._line_number_fg = QColor(line_number_palette["foreground"])
+        self._line_number_border = QColor(line_number_palette["border"])
         self.set_syntax_highlighting_enabled(True)
         self.blockCountChanged.connect(self._update_line_number_area_width)
         self.updateRequest.connect(self._update_line_number_area)
@@ -252,19 +156,10 @@ class SqlEditor(QPlainTextEdit):
 
     def set_theme(self, theme: str):
         self._highlighter.set_theme(theme)
-        normalized = (theme or "").strip().lower()
-        if normalized == "dark":
-            self._line_number_bg = QColor("#242f40")
-            self._line_number_fg = QColor("#8fa1b7")
-            self._line_number_border = QColor("#3b4659")
-        elif normalized == "vivid":
-            self._line_number_bg = QColor("#2c2152")
-            self._line_number_fg = QColor("#c4d4ff")
-            self._line_number_border = QColor("#5d54a8")
-        else:
-            self._line_number_bg = QColor("#edf3fb")
-            self._line_number_fg = QColor("#70839a")
-            self._line_number_border = QColor("#d7deea")
+        palette = get_line_number_palette(theme)
+        self._line_number_bg = QColor(palette["background"])
+        self._line_number_fg = QColor(palette["foreground"])
+        self._line_number_border = QColor(palette["border"])
         self.line_number_area.update()
 
     def line_number_area_width(self) -> int:

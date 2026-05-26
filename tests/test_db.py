@@ -3,6 +3,8 @@ Tests for the Database layer.
 No display required — db.py has no PySide6 imports.
 """
 
+import logging
+
 import pytest
 from shoveler.db import Database
 
@@ -105,6 +107,14 @@ def test_get_columns_includes_types(db_with_table):
     assert "VARCHAR" in type_map["name"]
 
 
+def test_get_columns_supports_table_names_requiring_identifier_quotes(db):
+    db.execute('CREATE TABLE "order details" ("student id" INTEGER, note VARCHAR)')
+
+    cols = db.get_columns("order details")
+
+    assert cols == [("student id", "INTEGER"), ("note", "VARCHAR")]
+
+
 def test_get_column_key_flags_primary_key(db):
     db.execute("CREATE TABLE users (id INTEGER PRIMARY KEY, name VARCHAR)")
 
@@ -151,6 +161,14 @@ def test_get_tables_no_connection():
 def test_get_columns_no_connection():
     db = Database()
     assert db.get_columns("anything") == []
+
+
+def test_get_columns_logs_failure_for_invalid_table_name(db, caplog):
+    with caplog.at_level(logging.ERROR, logger="shoveler.db"):
+        cols = db.get_columns("missing table")
+
+    assert cols == []
+    assert "Failed to describe table 'missing table'" in caplog.text
 
 
 # ── File checkpoint ─────────────────────────────────────────────────────────

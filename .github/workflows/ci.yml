@@ -1,0 +1,75 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      QT_QPA_PLATFORM: offscreen
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Sync dependencies
+        run: uv sync
+
+      - name: Run tests
+        run: uv run pytest
+
+  package-smoke:
+    runs-on: windows-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Sync dependencies
+        run: uv sync
+
+      - name: Build app (PyInstaller)
+        run: uv run pyinstaller shoveler.spec --noconfirm --clean
+
+      - name: Verify bundled theme assets
+        shell: pwsh
+        run: |
+          $themeFiles = @(
+            "dist/Shoveler/shoveler/assets/themes/light.qss",
+            "dist/Shoveler/shoveler/assets/themes/dark.qss",
+            "dist/Shoveler/shoveler/assets/themes/vivid.qss"
+          )
+
+          foreach ($file in $themeFiles) {
+            if (-not (Test-Path -LiteralPath $file)) {
+              throw "Missing packaged theme file: $file"
+            }
+          }
