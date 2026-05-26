@@ -70,14 +70,21 @@ jobs:
       - name: Verify bundled theme assets
         shell: pwsh
         run: |
-          $themeFiles = @(
-            "dist/Shoveler/shoveler/assets/themes/light.qss",
-            "dist/Shoveler/shoveler/assets/themes/dark.qss",
-            "dist/Shoveler/shoveler/assets/themes/vivid.qss"
+          $expectedSuffixes = @(
+            "shoveler/assets/themes/light.qss",
+            "shoveler/assets/themes/dark.qss",
+            "shoveler/assets/themes/vivid.qss"
           )
 
-          foreach ($file in $themeFiles) {
-            if (-not (Test-Path -LiteralPath $file)) {
-              throw "Missing packaged theme file: $file"
+          $packagedFiles = Get-ChildItem -Path "dist/Shoveler" -Recurse -File |
+            ForEach-Object { $_.FullName.Replace("\", "/") }
+
+          foreach ($suffix in $expectedSuffixes) {
+            $matches = $packagedFiles | Where-Object { $_ -like "*/$suffix" }
+            if (-not $matches) {
+              $foundQss = $packagedFiles | Where-Object { $_ -like "*.qss" }
+              Write-Host "QSS files found in package:"
+              $foundQss | ForEach-Object { Write-Host "  $_" }
+              throw "Missing packaged theme file ending with: $suffix"
             }
           }
