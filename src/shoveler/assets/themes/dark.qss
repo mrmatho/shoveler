@@ -1,0 +1,136 @@
+QMainWindow {
+    background-color: #1e2430;
+}
+
+QWidget {
+    color: #d9e2ef;
+}
+
+QMenuBar {
+    background-color: #1e2430;
+    border-bottom: 1px solid #384457;
+}
+
+QMenuBar::item {
+    background: transparent;
+    padding: 4px 8px;
+}
+
+QMenuBar::item:selected {
+    background-color: #2b3545;
+    border-radius: 4px;
+}
+
+QMenu {
+    background-color: #252d3a;
+    border: 1px solid #3b4659;
+}
+
+QMenu::item:selected {
+    background-color: #334156;
+}
+
+QStatusBar {
+    background-color: #202938;
+    border-top: 1px solid #384457;
+}
+
+QDialog,
+QMessageBox,
+QInputDialog {
+    background-color: #252d3a;
+    color: #d9e2ef;
+}
+
+QToolTip {
+    background-color: #2b3545;
+    color: #d9e2ef;
+    border: 1px solid #46556d;
+    padding: 4px;
+}
+
+QPlainTextEdit,
+QTableWidget,
+QTreeWidget,
+QListWidget,
+QLineEdit {
+    background-color: #1f2734;
+    border: 1px solid #3b4659;
+    border-radius: 4px;
+    selection-background-color: #38506f;
+}
+
+QAbstractItemView {
+    background-color: #1f2734;
+    alternate-background-color: #232d3d;
+    color: #d9e2ef;
+    gridline-color: #303d51;
+    selection-background-color: #38506f;
+    selection-color: #f2f6fc;
+}
+
+QHeaderView::section {
+    background-color: #273143;
+    color: #c7d2e3;
+    border: 1px solid #3b4659;
+    padding: 2px 4px;
+}
+
+QTableCornerButton::section {
+    background-color: #273143;
+    border: 1px solid #3b4659;
+}
+
+QTabWidget::pane {
+    border: 1px solid #3b4659;
+    background-color: #232c3b;
+}
+
+QTabBar::tab {
+    background-color: #2b3545;
+    border: 1px solid #3b4659;
+    border-bottom: none;
+    border-top-left-radius: 5px;
+    border-top-right-radius: 5px;
+    padding: 5px 20px 5px 10px;
+    margin-right: 2px;
+}
+
+QTabBar::close-button {
+    subcontrol-origin: padding;
+    subcontrol-position: right;
+    right: 4px;
+}
+
+QTabBar::tab:selected {
+    background-color: #1f2734;
+}
+
+QPushButton {
+    background-color: #2b3647;
+    border: 1px solid #46556d;
+    border-radius: 5px;
+    padding: 4px 10px;
+}
+
+QPushButton:hover {
+    background-color: #334156;
+}
+
+QPushButton:pressed {
+    background-color: #3a4a63;
+}
+
+QPushButton:disabled {
+    color: #8594aa;
+    background-color: #252d3a;
+    border-color: #3b4659;
+}
+
+QSplitter::handle {
+    background-color: #3b4659;
+}
+
+QSplitter::handle:hover {
+    background-color: #4a5a72;
+}

@@ -17,6 +17,21 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Signal, Qt
 from PySide6.QtGui import QFont, QColor
 
+from .config.text import (
+    SCHEMA_CHANGE_DIR,
+    SCHEMA_CHANGE_DIR_ERROR_TITLE,
+    SCHEMA_CHANGE_DIR_TOOLTIP,
+    SCHEMA_CWD_PLACEHOLDER,
+    SCHEMA_EMPTY,
+    SCHEMA_FILES_HEADING,
+    SCHEMA_HEADING,
+    SCHEMA_NO_FILES,
+    SCHEMA_REFRESH_FILES,
+    SCHEMA_SELECT_WORKING_DIRECTORY,
+    schema_table_insert_tooltip,
+)
+from .config.ui import get_schema_secondary_text
+
 
 class SchemaPanel(QWidget):
     table_double_clicked = Signal(str)
@@ -25,7 +40,7 @@ class SchemaPanel(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self._theme = "light"
-        self._secondary_text = "#6b7280"
+        self._secondary_text = get_schema_secondary_text(self._theme)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(4, 6, 4, 4)
         layout.setSpacing(4)
@@ -38,7 +53,7 @@ class SchemaPanel(QWidget):
         schema_layout.setContentsMargins(0, 0, 0, 0)
         schema_layout.setSpacing(4)
 
-        heading = QLabel("Schema")
+        heading = QLabel(SCHEMA_HEADING)
         heading.setStyleSheet("font-weight: bold; font-size: 12px;")
         schema_layout.addWidget(heading)
 
@@ -51,7 +66,7 @@ class SchemaPanel(QWidget):
         self.tree.itemDoubleClicked.connect(self._on_double_click)
         schema_layout.addWidget(self.tree)
 
-        self._empty_label = QLabel("Open a database\nto see its tables.")
+        self._empty_label = QLabel(SCHEMA_EMPTY)
         self._empty_label.setStyleSheet("font-size: 11px; padding: 8px;")
         self._empty_label.setAlignment(Qt.AlignmentFlag.AlignTop)
         schema_layout.addWidget(self._empty_label)
@@ -61,7 +76,7 @@ class SchemaPanel(QWidget):
         files_layout.setContentsMargins(0, 0, 0, 0)
         files_layout.setSpacing(4)
 
-        files_heading = QLabel("Working Directory Files")
+        files_heading = QLabel(SCHEMA_FILES_HEADING)
         files_heading.setStyleSheet("font-weight: bold; font-size: 12px;")
         files_layout.addWidget(files_heading)
 
@@ -71,11 +86,11 @@ class SchemaPanel(QWidget):
 
         self.cwd_path = QLineEdit()
         self.cwd_path.setReadOnly(True)
-        self.cwd_path.setPlaceholderText("Current working directory")
+        self.cwd_path.setPlaceholderText(SCHEMA_CWD_PLACEHOLDER)
         path_row.addWidget(self.cwd_path)
 
-        self.change_dir_btn = QPushButton("Change...")
-        self.change_dir_btn.setToolTip("Choose a working directory")
+        self.change_dir_btn = QPushButton(SCHEMA_CHANGE_DIR)
+        self.change_dir_btn.setToolTip(SCHEMA_CHANGE_DIR_TOOLTIP)
         self.change_dir_btn.clicked.connect(self._choose_working_directory)
         path_row.addWidget(self.change_dir_btn)
 
@@ -91,7 +106,7 @@ class SchemaPanel(QWidget):
         footer_row.setSpacing(4)
         footer_row.addStretch()
 
-        self.refresh_files_btn = QPushButton("Refresh")
+        self.refresh_files_btn = QPushButton(SCHEMA_REFRESH_FILES)
         self.refresh_files_btn.clicked.connect(self.refresh_working_directory)
         footer_row.addWidget(self.refresh_files_btn)
 
@@ -109,12 +124,7 @@ class SchemaPanel(QWidget):
 
     def set_theme(self, theme: str):
         self._theme = (theme or "").strip().lower()
-        if self._theme == "dark":
-            self._secondary_text = "#9aa8bc"
-        elif self._theme == "vivid":
-            self._secondary_text = "#a9b6ff"
-        else:
-            self._secondary_text = "#6b7280"
+        self._secondary_text = get_schema_secondary_text(self._theme)
         self._empty_label.setStyleSheet(
             f"color: {self._secondary_text}; font-size: 11px; padding: 8px;"
         )
@@ -137,7 +147,7 @@ class SchemaPanel(QWidget):
             name for name in entries if os.path.isfile(os.path.join(cwd, name))
         ]
         if not file_names:
-            self.files_list.addItem("(No files in current directory)")
+            self.files_list.addItem(SCHEMA_NO_FILES)
             self.files_list.setEnabled(False)
             return
 
@@ -147,7 +157,7 @@ class SchemaPanel(QWidget):
         start_dir = os.getcwd()
         selected = QFileDialog.getExistingDirectory(
             self,
-            "Select Working Directory",
+            SCHEMA_SELECT_WORKING_DIRECTORY,
             start_dir,
         )
         if not selected:
@@ -156,7 +166,7 @@ class SchemaPanel(QWidget):
         try:
             os.chdir(selected)
         except Exception as e:
-            QMessageBox.critical(self, "Could not change directory", str(e))
+            QMessageBox.critical(self, SCHEMA_CHANGE_DIR_ERROR_TITLE, str(e))
             return
 
         self.refresh_working_directory()
@@ -179,7 +189,7 @@ class SchemaPanel(QWidget):
             table_item = QTreeWidgetItem([table_name, ""])
             table_item.setFont(0, bold)
             table_item.setData(0, Qt.ItemDataRole.UserRole, "table")
-            table_item.setToolTip(0, f"Double-click to insert '{table_name}' into editor")
+            table_item.setToolTip(0, schema_table_insert_tooltip(table_name))
 
             key_info = db.get_column_key_info(table_name)
 
