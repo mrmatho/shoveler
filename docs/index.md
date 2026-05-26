@@ -1,8 +1,7 @@
 # Shoveler Docs
 
-Shoveler is a lightweight DuckDB workbench built for learning and teaching SQL.
+Shoveler is a lightweight [DuckDB](https://duckdb.org) workbench built for learning and teaching SQL.
 
-This first docs release focuses on a fast start, core concepts, and common fixes.
 
 ## Start Here
 

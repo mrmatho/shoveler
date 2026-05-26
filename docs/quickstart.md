@@ -4,11 +4,18 @@ This guide gets you from clone to first query quickly.
 
 ## 1) Install and run
 
+Using UV:
+
 ```shell
-git clone https://github.com/mrmatho/shoveler
-cd shoveler
-uv sync
+uv pip install shoveler
 uv run python -m shoveler
+```
+
+Using pip:
+
+```shell
+pip install shoveler
+python -m shoveler
 ```
 
 ## 2) Choose a database mode
@@ -18,7 +25,7 @@ When the app opens, choose one:
 - Open DB File: Use an existing `.duckdb` or `.db` file.
 - New Blank DB: Start an in-memory database for experiments.
 
-Tip: In-memory databases are temporary until you save them.
+*Tip: In-memory databases are temporary until you save them.*
 
 ## 3) Run your first SQL
 
@@ -32,8 +39,8 @@ create table students (
 );
 
 insert into students values
-  (1, 'Ana', 88),
-  (2, 'Ben', 92),
+  (1, 'Ahmed', 88),
+  (2, 'Belinda', 92),
   (3, 'Cleo', 79);
 
 select * from students order by grade desc;
