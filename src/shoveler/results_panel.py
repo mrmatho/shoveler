@@ -18,6 +18,8 @@ from PySide6.QtGui import QColor
 
 from .config.text import (
     RESULTS_EXPORT_BUTTON,
+    RESULTS_EXPORT_ALL_CLIPBOARD,
+    RESULTS_EXPORT_ALL_CSV,
     RESULTS_EXPORT_CLIPBOARD,
     RESULTS_EXPORT_CSV,
     RESULTS_EXPORT_DIALOG_FILTER,
@@ -27,7 +29,8 @@ from .config.text import (
     RESULTS_EXPORT_SCOPE_SELECTED,
     RESULTS_EXPORT_SCOPE_TITLE,
     RESULTS_STATUS_EMPTY,
-    results_export_scope_message,
+    RESULTS_EXPORT_SELECTED_CLIPBOARD,
+    RESULTS_EXPORT_SELECTED_CSV,
 )
 from .config.ui import get_results_null_colour, get_results_status_colours
 
@@ -131,18 +134,29 @@ class ResultsPanel(QWidget):
 
     def _show_export_menu(self):
         menu = QMenu(self)
-        csv_action = menu.addAction(RESULTS_EXPORT_CSV)
-        clipboard_action = menu.addAction(RESULTS_EXPORT_CLIPBOARD)
+        selected_csv_action = menu.addAction(RESULTS_EXPORT_SELECTED_CSV)
+        selected_clipboard_action = menu.addAction(RESULTS_EXPORT_SELECTED_CLIPBOARD)
+        all_csv_action = menu.addAction(RESULTS_EXPORT_ALL_CSV)
+        all_clipboard_action = menu.addAction(RESULTS_EXPORT_ALL_CLIPBOARD)
+
+        has_selection = self._has_selected_rows()
+        selected_csv_action.setEnabled(has_selection)
+        selected_clipboard_action.setEnabled(has_selection)
+
         chosen = menu.exec(
             self.export_btn.mapToGlobal(self.export_btn.rect().bottomLeft())
         )
-        if chosen == csv_action:
-            self._export_csv()
-        elif chosen == clipboard_action:
-            self._copy_to_clipboard()
+        if chosen == selected_csv_action:
+            self._export_csv(selected_only=True)
+        elif chosen == selected_clipboard_action:
+            self._copy_to_clipboard(selected_only=True)
+        elif chosen == all_csv_action:
+            self._export_csv(selected_only=False)
+        elif chosen == all_clipboard_action:
+            self._copy_to_clipboard(selected_only=False)
 
-    def _export_csv(self):
-        export_rows = self._rows_for_export()
+    def _export_csv(self, selected_only: bool = False):
+        export_rows = self._rows_for_export(selected_only)
         if export_rows is None:
             return
 
@@ -156,8 +170,8 @@ class ResultsPanel(QWidget):
             writer.writerow(self._last_columns)
             writer.writerows(export_rows)
 
-    def _copy_to_clipboard(self):
-        export_rows = self._rows_for_export()
+    def _copy_to_clipboard(self, selected_only: bool = False):
+        export_rows = self._rows_for_export(selected_only)
         if export_rows is None:
             return
 
@@ -168,42 +182,21 @@ class ResultsPanel(QWidget):
         lines.extend("\t".join(_format_cell(value) for value in row) for row in export_rows)
         QApplication.clipboard().setText("\n".join(lines))
 
-    def _rows_for_export(self) -> list[tuple] | None:
+    def _rows_for_export(self, selected_only: bool) -> list[tuple] | None:
         if not self._last_columns:
             return None
 
-        selected_rows = self._selected_row_indexes()
-        if not selected_rows or len(selected_rows) == len(self._last_rows):
+        if not selected_only:
             return list(self._last_rows)
 
-        scope = self._ask_export_scope(len(selected_rows), len(self._last_rows))
-        if scope == "selected":
-            return [self._last_rows[idx] for idx in selected_rows]
-        if scope == "all":
-            return list(self._last_rows)
-        return None
+        selected_rows = self._selected_row_indexes()
+        return [self._last_rows[index] for index in selected_rows]
+
+    def _has_selected_rows(self) -> bool:
+        return bool(self._selected_row_indexes())
 
     def _selected_row_indexes(self) -> list[int]:
         selection_model = self.table.selectionModel()
         if selection_model is None:
             return []
         return sorted({index.row() for index in selection_model.selectedRows()})
-
-    def _ask_export_scope(self, selected_count: int, total_count: int) -> str | None:
-        box = QMessageBox(self)
-        box.setWindowTitle(RESULTS_EXPORT_SCOPE_TITLE)
-        box.setText(results_export_scope_message(selected_count, total_count))
-
-        all_button = box.addButton(RESULTS_EXPORT_SCOPE_ALL, QMessageBox.ButtonRole.AcceptRole)
-        selected_button = box.addButton(
-            RESULTS_EXPORT_SCOPE_SELECTED,
-            QMessageBox.ButtonRole.YesRole,
-        )
-        box.addButton(RESULTS_EXPORT_SCOPE_CANCEL, QMessageBox.ButtonRole.RejectRole)
-
-        box.exec()
-        if box.clickedButton() == selected_button:
-            return "selected"
-        if box.clickedButton() == all_button:
-            return "all"
-        return None

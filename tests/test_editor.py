@@ -21,6 +21,16 @@ def qapp():
     yield app
 
 
+@pytest.fixture(autouse=True)
+def close_top_level_widgets(qapp):
+    yield
+
+    for widget in qapp.topLevelWidgets():
+        widget.close()
+        widget.deleteLater()
+    qapp.processEvents()
+
+
 def test_sql_highlighter_applies_and_clears_formats():
     document = QTextDocument()
     document.setPlainText("SELECT COUNT(*) FROM students -- comment")
@@ -109,6 +119,98 @@ def test_query_tab_load_sql_from_path_failure_returns_false(qapp, monkeypatch):
     loaded = tab._load_sql_from_path("does_not_exist.sql")
 
     assert loaded is False
+
+
+def test_results_panel_copy_to_clipboard_includes_headers_and_rows(qapp):
+    panel = ResultsPanel()
+    panel.show_results(["id", "name"], [(1, "Ada"), (None, "Bob")], elapsed=0.01)
+
+    qapp.clipboard().clear()
+    panel._copy_to_clipboard()
+
+    assert qapp.clipboard().text() == "id\tname\n1\tAda\nNULL\tBob"
+    panel.close()
+
+
+def test_results_panel_copy_to_clipboard_can_export_selected_rows(qapp):
+    panel = ResultsPanel()
+    panel.show_results(["id", "name"], [(1, "Ada"), (2, "Bob"), (3, "Cat")], elapsed=0.01)
+    panel.table.selectRow(1)
+
+    qapp.clipboard().clear()
+    panel._copy_to_clipboard(selected_only=True)
+
+    assert qapp.clipboard().text() == "id\tname\n2\tBob"
+    panel.close()
+
+
+def test_results_panel_copy_to_clipboard_all_rows_ignores_selection(qapp):
+    panel = ResultsPanel()
+    panel.show_results(["id", "name"], [(1, "Ada"), (2, "Bob"), (3, "Cat")], elapsed=0.01)
+    panel.table.selectRow(1)
+
+    qapp.clipboard().clear()
+    panel._copy_to_clipboard(selected_only=False)
+
+    assert qapp.clipboard().text() == "id\tname\n1\tAda\n2\tBob\n3\tCat"
+    panel.close()
+
+
+def test_results_panel_export_csv_can_export_selected_rows(qapp, tmp_path, monkeypatch):
+    panel = ResultsPanel()
+    panel.show_results(["id", "name"], [(1, "Ada"), (2, "Bob"), (3, "Cat")], elapsed=0.01)
+    panel.table.selectRow(2)
+
+    path = tmp_path / "selected.csv"
+    monkeypatch.setattr(
+        "shoveler.results_panel.QFileDialog.getSaveFileName",
+        lambda *args, **kwargs: (str(path), "CSV Files (*.csv)"),
+    )
+
+    panel._export_csv(selected_only=True)
+
+    assert path.read_text(encoding="utf-8") == "id,name\n3,Cat\n"
+    panel.close()
+
+
+def test_results_panel_export_menu_has_four_explicit_actions(qapp, monkeypatch):
+    panel = ResultsPanel()
+    panel.show_results(["id"], [(1,)], elapsed=0.01)
+
+    labels = []
+
+    class FakeAction:
+        def __init__(self, label):
+            self.label = label
+            self.enabled = True
+
+        def setEnabled(self, enabled):
+            self.enabled = enabled
+
+    class FakeMenu:
+        def __init__(self, parent=None):
+            self.actions = []
+
+        def addAction(self, label):
+            labels.append(label)
+            action = FakeAction(label)
+            self.actions.append(action)
+            return action
+
+        def exec(self, *args, **kwargs):
+            return None
+
+    monkeypatch.setattr("shoveler.results_panel.QMenu", FakeMenu)
+
+    panel._show_export_menu()
+
+    assert labels == [
+        "Export selected rows to CSV",
+        "Copy selected rows to Clipboard",
+        "Export all rows to CSV",
+        "Copy all rows to Clipboard",
+    ]
+    panel.close()
 
 
 def test_database_status_widget_shortens_long_file_path(qapp):
@@ -358,35 +460,21 @@ def test_results_panel_copy_to_clipboard_includes_headers_and_rows(qapp):
     assert qapp.clipboard().text() == "id\tname\n1\tAda\nNULL\tBob"
 
 
-def test_results_panel_copy_to_clipboard_can_export_selected_rows(qapp, monkeypatch):
+def test_results_panel_copy_to_clipboard_can_export_selected_rows(qapp):
     panel = ResultsPanel()
     panel.show_results(["id", "name"], [(1, "Ada"), (2, "Bob"), (3, "Cat")], elapsed=0.01)
     panel.table.selectRow(1)
-    monkeypatch.setattr(panel, "_ask_export_scope", lambda *args: "selected")
 
     qapp.clipboard().clear()
-    panel._copy_to_clipboard()
+    panel._copy_to_clipboard(selected_only=True)
 
     assert qapp.clipboard().text() == "id\tname\n2\tBob"
-
-
-def test_results_panel_copy_to_clipboard_cancel_keeps_existing_clipboard(qapp, monkeypatch):
-    panel = ResultsPanel()
-    panel.show_results(["id", "name"], [(1, "Ada"), (2, "Bob"), (3, "Cat")], elapsed=0.01)
-    panel.table.selectRow(1)
-    monkeypatch.setattr(panel, "_ask_export_scope", lambda *args: None)
-
-    qapp.clipboard().setText("existing")
-    panel._copy_to_clipboard()
-
-    assert qapp.clipboard().text() == "existing"
 
 
 def test_results_panel_export_csv_can_export_selected_rows(qapp, monkeypatch, tmp_path):
     panel = ResultsPanel()
     panel.show_results(["id", "name"], [(1, "Ada"), (2, "Bob"), (3, "Cat")], elapsed=0.01)
     panel.table.selectRow(2)
-    monkeypatch.setattr(panel, "_ask_export_scope", lambda *args: "selected")
 
     path = tmp_path / "selected.csv"
     monkeypatch.setattr(
@@ -394,7 +482,7 @@ def test_results_panel_export_csv_can_export_selected_rows(qapp, monkeypatch, tm
         lambda *args, **kwargs: (str(path), "CSV Files (*.csv)"),
     )
 
-    panel._export_csv()
+    panel._export_csv(selected_only=True)
 
     assert path.read_text(encoding="utf-8") == "id,name\n3,Cat\n"
 
