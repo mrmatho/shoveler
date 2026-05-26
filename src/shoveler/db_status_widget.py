@@ -35,6 +35,8 @@ class DatabaseStatusWidget(QFrame):
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        self._theme = "light"
+        self._secondary_text_colour = "#6b7280"
         self.setFrameShape(QFrame.Shape.StyledPanel)
         self.setFixedHeight(38)
 
@@ -80,6 +82,15 @@ class DatabaseStatusWidget(QFrame):
 
         self._set_state_disconnected()
 
+    def set_theme(self, theme: str):
+        self._theme = (theme or "").strip().lower()
+        if self._theme == "dark":
+            self._secondary_text_colour = "#a8b5c8"
+        elif self._theme == "vivid":
+            self._secondary_text_colour = "#b8c6ff"
+        else:
+            self._secondary_text_colour = "#6b7280"
+
     # ── Public state setters ────────────────────────────────────────────────
 
     def set_file_mode(self, path: str):
@@ -87,7 +98,10 @@ class DatabaseStatusWidget(QFrame):
         if len(path) > MAX_STATUS_PATH_LENGTH:
             text = f"<b>{filename}</b>"
         else:
-            text = f"<b>{filename}</b>  <span style='color:#888'>({path})</span>"
+            text = (
+                f"<b>{filename}</b>  "
+                f"<span style='color:{self._secondary_text_colour}'>({path})</span>"
+            )
         self._apply(
             colour=COLOUR_FILE,
             text=text,
@@ -99,7 +113,11 @@ class DatabaseStatusWidget(QFrame):
     def set_memory_mode(self):
         self._apply(
             colour=COLOUR_MEMORY,
-            text="<b>In-memory</b>  <span style='color:#888'>(unsaved — data is lost when closed)</span>",
+            text=(
+                "<b>In-memory</b>  "
+                f"<span style='color:{self._secondary_text_colour}'>"
+                "(unsaved — data is lost when closed)</span>"
+            ),
             checkpoint_enabled=False,
             show_save_inline=True,
             label_tooltip="",

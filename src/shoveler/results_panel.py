@@ -18,6 +18,13 @@ from PySide6.QtGui import QColor
 class ResultsPanel(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
+        self._theme = "light"
+        self._null_colour = "#7d8796"
+        self._status_colours = {
+            "ok": "#2a9d2a",
+            "error": "#cc2200",
+            "neutral": "#888",
+        }
 
         # Raw data kept in sync with table display — export reads from here
         self._last_columns: list[str] = []
@@ -34,7 +41,7 @@ class ResultsPanel(QWidget):
         status_layout.setContentsMargins(6, 0, 6, 0)
 
         self.status_label = QLabel("No results yet")
-        self.status_label.setStyleSheet("color: #888; font-size: 12px;")
+        self.status_label.setStyleSheet("font-size: 12px;")
         status_layout.addWidget(self.status_label)
         status_layout.addStretch()
 
@@ -55,6 +62,31 @@ class ResultsPanel(QWidget):
         self.table.verticalHeader().setDefaultSectionSize(22)
         self.table.setStyleSheet("font-size: 12px;")
         layout.addWidget(self.table)
+        self.set_theme("light")
+
+    def set_theme(self, theme: str):
+        self._theme = (theme or "").strip().lower()
+        if self._theme == "dark":
+            self._null_colour = "#93a2b8"
+            self._status_colours = {
+                "ok": "#7ed957",
+                "error": "#ff8b7f",
+                "neutral": "#a8b5c8",
+            }
+        elif self._theme == "vivid":
+            self._null_colour = "#9eb1ff"
+            self._status_colours = {
+                "ok": "#8dff8a",
+                "error": "#ff8ea1",
+                "neutral": "#b8c3ff",
+            }
+        else:
+            self._null_colour = "#7d8796"
+            self._status_colours = {
+                "ok": "#2a9d2a",
+                "error": "#cc2200",
+                "neutral": "#888",
+            }
 
     # ── Public interface ────────────────────────────────────────────────────
 
@@ -85,8 +117,7 @@ class ResultsPanel(QWidget):
     # ── Internals ───────────────────────────────────────────────────────────
 
     def _set_status(self, text: str, kind: str):
-        colours = {"ok": "#2a9d2a", "error": "#cc2200", "neutral": "#888"}
-        colour = colours.get(kind, "#888")
+        colour = self._status_colours.get(kind, self._status_colours["neutral"])
         self.status_label.setText(text)
         self.status_label.setStyleSheet(f"color: {colour}; font-size: 12px;")
 
@@ -100,7 +131,7 @@ class ResultsPanel(QWidget):
                 item = QTableWidgetItem(text)
                 item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
                 if val is None:
-                    item.setForeground(QColor("#aaaaaa"))
+                    item.setForeground(QColor(self._null_colour))
                 self.table.setItem(r, c, item)
         self.table.resizeColumnsToContents()
 

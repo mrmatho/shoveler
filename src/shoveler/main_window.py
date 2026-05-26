@@ -299,6 +299,145 @@ class MainWindow(QMainWindow):
         background-color: #4a5a72;
     }
     """
+    _VIVID_THEME_STYLESHEET = """
+    QMainWindow {
+        background-color: #120d1f;
+    }
+
+    QWidget {
+        color: #f6f3ff;
+    }
+
+    QMenuBar {
+        background-color: #1b1330;
+        border-bottom: 1px solid #6934c9;
+    }
+
+    QMenuBar::item {
+        background: transparent;
+        padding: 4px 8px;
+    }
+
+    QMenuBar::item:selected {
+        background-color: #3a2171;
+        border-radius: 4px;
+    }
+
+    QMenu {
+        background-color: #26164a;
+        border: 1px solid #7b3cff;
+    }
+
+    QMenu::item:selected {
+        background-color: #5128a1;
+    }
+
+    QStatusBar {
+        background-color: #1b1330;
+        border-top: 1px solid #6934c9;
+    }
+
+    QDialog,
+    QMessageBox,
+    QInputDialog {
+        background-color: #26164a;
+        color: #f6f3ff;
+    }
+
+    QToolTip {
+        background-color: #3a2171;
+        color: #f8f9ff;
+        border: 1px solid #9d67ff;
+        padding: 4px;
+    }
+
+    QPlainTextEdit,
+    QTableWidget,
+    QTreeWidget,
+    QListWidget,
+    QLineEdit {
+        background-color: #1a1e4f;
+        border: 1px solid #5b69ff;
+        border-radius: 4px;
+        selection-background-color: #ff3fa4;
+        selection-color: #ffffff;
+    }
+
+    QAbstractItemView {
+        background-color: #1a1e4f;
+        alternate-background-color: #20265f;
+        color: #f6f3ff;
+        gridline-color: #4658cc;
+        selection-background-color: #ff3fa4;
+        selection-color: #ffffff;
+    }
+
+    QHeaderView::section {
+        background-color: #2d2b73;
+        color: #f6f3ff;
+        border: 1px solid #5b69ff;
+        padding: 2px 4px;
+    }
+
+    QTableCornerButton::section {
+        background-color: #2d2b73;
+        border: 1px solid #5b69ff;
+    }
+
+    QTabWidget::pane {
+        border: 1px solid #5b69ff;
+        background-color: #201f5b;
+    }
+
+    QTabBar::tab {
+        background-color: #36257d;
+        border: 1px solid #5b69ff;
+        border-bottom: none;
+        border-top-left-radius: 5px;
+        border-top-right-radius: 5px;
+        padding: 5px 20px 5px 10px;
+        margin-right: 2px;
+    }
+
+    QTabBar::close-button {
+        subcontrol-origin: padding;
+        subcontrol-position: right;
+        right: 4px;
+    }
+
+    QTabBar::tab:selected {
+        background-color: #1a1e4f;
+    }
+
+    QPushButton {
+        background-color: #2f2a76;
+        border: 1px solid #6b7fff;
+        border-radius: 5px;
+        padding: 4px 10px;
+    }
+
+    QPushButton:hover {
+        background-color: #4435a1;
+    }
+
+    QPushButton:pressed {
+        background-color: #5d3ccd;
+    }
+
+    QPushButton:disabled {
+        color: #aaa7c8;
+        background-color: #2a2350;
+        border-color: #4f4688;
+    }
+
+    QSplitter::handle {
+        background-color: #5b69ff;
+    }
+
+    QSplitter::handle:hover {
+        background-color: #7b86ff;
+    }
+    """
 
     def __init__(self):
         super().__init__()
@@ -409,8 +548,15 @@ class MainWindow(QMainWindow):
         theme_menu.addAction(self.dark_theme_action)
         self.theme_action_group.addAction(self.dark_theme_action)
 
+        self.vivid_theme_action = QAction("Vivid", self)
+        self.vivid_theme_action.setCheckable(True)
+        self.vivid_theme_action.triggered.connect(lambda: self._set_theme("vivid"))
+        theme_menu.addAction(self.vivid_theme_action)
+        self.theme_action_group.addAction(self.vivid_theme_action)
+
         self.light_theme_action.setChecked(self.theme == "light")
         self.dark_theme_action.setChecked(self.theme == "dark")
+        self.vivid_theme_action.setChecked(self.theme == "vivid")
 
     def _connect_signals(self):
         self.db_status.file_opened.connect(self._open_file)
@@ -436,23 +582,28 @@ class MainWindow(QMainWindow):
 
     def _read_theme_setting(self) -> str:
         value = self.settings.value(self._THEME_KEY, "light")
-        if isinstance(value, str) and value.strip().lower() in {"light", "dark"}:
+        if isinstance(value, str) and value.strip().lower() in {"light", "dark", "vivid"}:
             return value.strip().lower()
         return "light"
 
     def _set_theme(self, theme: str, persist: bool = True, show_message: bool = True):
         normalized = (theme or "").strip().lower()
-        if normalized not in {"light", "dark"}:
+        if normalized not in {"light", "dark", "vivid"}:
             normalized = "light"
 
         if normalized == "dark":
             self.setStyleSheet(self._DARK_THEME_STYLESHEET)
             self.dark_theme_action.setChecked(True)
+        elif normalized == "vivid":
+            self.setStyleSheet(self._VIVID_THEME_STYLESHEET)
+            self.vivid_theme_action.setChecked(True)
         else:
             self.setStyleSheet(self._LIGHT_THEME_STYLESHEET)
             self.light_theme_action.setChecked(True)
 
         self.theme = normalized
+        self.db_status.set_theme(self.theme)
+        self.schema_panel.set_theme(self.theme)
         for index in range(self.tab_widget.count()):
             tab = self.tab_widget.widget(index)
             if isinstance(tab, QueryTab):

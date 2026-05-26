@@ -24,6 +24,8 @@ class SchemaPanel(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        self._theme = "light"
+        self._secondary_text = "#6b7280"
         layout = QVBoxLayout(self)
         layout.setContentsMargins(4, 6, 4, 4)
         layout.setSpacing(4)
@@ -37,7 +39,7 @@ class SchemaPanel(QWidget):
         schema_layout.setSpacing(4)
 
         heading = QLabel("Schema")
-        heading.setStyleSheet("font-weight: bold; font-size: 12px; color: #555;")
+        heading.setStyleSheet("font-weight: bold; font-size: 12px;")
         schema_layout.addWidget(heading)
 
         self.tree = QTreeWidget()
@@ -50,7 +52,7 @@ class SchemaPanel(QWidget):
         schema_layout.addWidget(self.tree)
 
         self._empty_label = QLabel("Open a database\nto see its tables.")
-        self._empty_label.setStyleSheet("color: #aaa; font-size: 11px; padding: 8px;")
+        self._empty_label.setStyleSheet("font-size: 11px; padding: 8px;")
         self._empty_label.setAlignment(Qt.AlignmentFlag.AlignTop)
         schema_layout.addWidget(self._empty_label)
 
@@ -60,7 +62,7 @@ class SchemaPanel(QWidget):
         files_layout.setSpacing(4)
 
         files_heading = QLabel("Working Directory Files")
-        files_heading.setStyleSheet("font-weight: bold; font-size: 12px; color: #555;")
+        files_heading.setStyleSheet("font-weight: bold; font-size: 12px;")
         files_layout.addWidget(files_heading)
 
         path_row = QHBoxLayout()
@@ -103,6 +105,19 @@ class SchemaPanel(QWidget):
 
         self._show_empty(True)
         self.refresh_working_directory()
+        self.set_theme("light")
+
+    def set_theme(self, theme: str):
+        self._theme = (theme or "").strip().lower()
+        if self._theme == "dark":
+            self._secondary_text = "#9aa8bc"
+        elif self._theme == "vivid":
+            self._secondary_text = "#a9b6ff"
+        else:
+            self._secondary_text = "#6b7280"
+        self._empty_label.setStyleSheet(
+            f"color: {self._secondary_text}; font-size: 11px; padding: 8px;"
+        )
 
     def refresh_working_directory(self):
         cwd = os.getcwd()
@@ -158,7 +173,7 @@ class SchemaPanel(QWidget):
         self._show_empty(False)
         bold = QFont()
         bold.setBold(True)
-        grey = QColor("#888888")
+        grey = QColor(self._secondary_text)
 
         for table_name in tables:
             table_item = QTreeWidgetItem([table_name, ""])
