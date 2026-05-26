@@ -10,6 +10,7 @@ from shoveler.editor import SqlEditor, SqlHighlighter
 from shoveler.db_status_widget import DatabaseStatusWidget
 from shoveler.main_window import MainWindow
 from shoveler.query_tab import QueryTab
+from shoveler.results_panel import ResultsPanel
 
 
 @pytest.fixture(scope="session")
@@ -344,3 +345,13 @@ def test_main_window_open_sql_routes_to_current_tab(qapp):
     assert called["value"] is True
 
     window.close()
+
+
+def test_results_panel_copy_to_clipboard_includes_headers_and_rows(qapp):
+    panel = ResultsPanel()
+    panel.show_results(["id", "name"], [(1, "Ada"), (None, "Bob")], elapsed=0.01)
+
+    qapp.clipboard().clear()
+    panel._copy_to_clipboard()
+
+    assert qapp.clipboard().text() == "id\tname\n1\tAda\nNULL\tBob"

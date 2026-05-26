@@ -1,6 +1,7 @@
 import csv
 
 from PySide6.QtWidgets import (
+    QApplication,
     QWidget,
     QVBoxLayout,
     QHBoxLayout,
@@ -16,6 +17,7 @@ from PySide6.QtGui import QColor
 
 from .config.text import (
     RESULTS_EXPORT_BUTTON,
+    RESULTS_EXPORT_CLIPBOARD,
     RESULTS_EXPORT_CSV,
     RESULTS_EXPORT_DIALOG_FILTER,
     RESULTS_EXPORT_DIALOG_TITLE,
@@ -124,11 +126,14 @@ class ResultsPanel(QWidget):
     def _show_export_menu(self):
         menu = QMenu(self)
         csv_action = menu.addAction(RESULTS_EXPORT_CSV)
+        clipboard_action = menu.addAction(RESULTS_EXPORT_CLIPBOARD)
         chosen = menu.exec(
             self.export_btn.mapToGlobal(self.export_btn.rect().bottomLeft())
         )
         if chosen == csv_action:
             self._export_csv()
+        elif chosen == clipboard_action:
+            self._copy_to_clipboard()
 
     def _export_csv(self):
         path, _ = QFileDialog.getSaveFileName(
@@ -140,3 +145,14 @@ class ResultsPanel(QWidget):
             writer = csv.writer(f)
             writer.writerow(self._last_columns)
             writer.writerows(self._last_rows)
+
+    def _copy_to_clipboard(self):
+        if not self._last_columns:
+            return
+
+        def _format_cell(value):
+            return "NULL" if value is None else str(value)
+
+        lines = ["\t".join(self._last_columns)]
+        lines.extend("\t".join(_format_cell(value) for value in row) for row in self._last_rows)
+        QApplication.clipboard().setText("\n".join(lines))
