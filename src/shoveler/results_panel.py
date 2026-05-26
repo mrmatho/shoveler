@@ -11,6 +11,7 @@ from PySide6.QtWidgets import (
     QPushButton,
     QMenu,
     QFileDialog,
+    QMessageBox,
 )
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor
@@ -23,6 +24,10 @@ from .config.text import (
     RESULTS_EXPORT_CSV,
     RESULTS_EXPORT_DIALOG_FILTER,
     RESULTS_EXPORT_DIALOG_TITLE,
+    RESULTS_EXPORT_SCOPE_ALL,
+    RESULTS_EXPORT_SCOPE_CANCEL,
+    RESULTS_EXPORT_SCOPE_SELECTED,
+    RESULTS_EXPORT_SCOPE_TITLE,
     RESULTS_STATUS_EMPTY,
     RESULTS_EXPORT_SELECTED_CLIPBOARD,
     RESULTS_EXPORT_SELECTED_CSV,

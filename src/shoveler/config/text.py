@@ -74,6 +74,17 @@ RESULTS_EXPORT_CSV = RESULTS_EXPORT_ALL_CSV
 RESULTS_EXPORT_CLIPBOARD = RESULTS_EXPORT_ALL_CLIPBOARD
 RESULTS_EXPORT_DIALOG_TITLE = "Export as CSV"
 RESULTS_EXPORT_DIALOG_FILTER = "CSV Files (*.csv)"
+RESULTS_EXPORT_SCOPE_TITLE = "Export Results"
+RESULTS_EXPORT_SCOPE_ALL = "All rows"
+RESULTS_EXPORT_SCOPE_SELECTED = "Selected rows"
+RESULTS_EXPORT_SCOPE_CANCEL = "Cancel"
+
+
+def results_export_scope_message(selected_rows: int, total_rows: int) -> str:
+    return (
+        f"{selected_rows} of {total_rows} rows selected. "
+        "Export all rows or just selected rows?"
+    )
 
 UNSAVED_MEMORY_TITLE = "Unsaved In-Memory Database"
 UNSAVED_MEMORY_TEXT = "You are using an in-memory database."

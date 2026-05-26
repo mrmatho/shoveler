@@ -6,6 +6,7 @@ from PySide6.QtGui import QTextDocument
 from PySide6.QtWidgets import QApplication, QMessageBox
 
 from shoveler.config.theme import AVAILABLE_THEMES, DEFAULT_THEME, load_theme_stylesheet, normalize_theme
+from shoveler.config.text import results_export_scope_message
 from shoveler.editor import SqlEditor, SqlHighlighter
 from shoveler.db_status_widget import DatabaseStatusWidget
 from shoveler.main_window import MainWindow
@@ -447,3 +448,61 @@ def test_main_window_open_sql_routes_to_current_tab(qapp):
     assert called["value"] is True
 
     window.close()
+
+
+def test_results_panel_copy_to_clipboard_includes_headers_and_rows(qapp):
+    panel = ResultsPanel()
+    panel.show_results(["id", "name"], [(1, "Ada"), (None, "Bob")], elapsed=0.01)
+
+    qapp.clipboard().clear()
+    panel._copy_to_clipboard()
+
+    assert qapp.clipboard().text() == "id\tname\n1\tAda\nNULL\tBob"
+
+
+def test_results_panel_copy_to_clipboard_can_export_selected_rows(qapp, monkeypatch):
+    panel = ResultsPanel()
+    panel.show_results(["id", "name"], [(1, "Ada"), (2, "Bob"), (3, "Cat")], elapsed=0.01)
+    panel.table.selectRow(1)
+    monkeypatch.setattr(panel, "_ask_export_scope", lambda *args: "selected")
+
+    qapp.clipboard().clear()
+    panel._copy_to_clipboard()
+
+    assert qapp.clipboard().text() == "id\tname\n2\tBob"
+
+
+def test_results_panel_copy_to_clipboard_cancel_keeps_existing_clipboard(qapp, monkeypatch):
+    panel = ResultsPanel()
+    panel.show_results(["id", "name"], [(1, "Ada"), (2, "Bob"), (3, "Cat")], elapsed=0.01)
+    panel.table.selectRow(1)
+    monkeypatch.setattr(panel, "_ask_export_scope", lambda *args: None)
+
+    qapp.clipboard().setText("existing")
+    panel._copy_to_clipboard()
+
+    assert qapp.clipboard().text() == "existing"
+
+
+def test_results_panel_export_csv_can_export_selected_rows(qapp, monkeypatch, tmp_path):
+    panel = ResultsPanel()
+    panel.show_results(["id", "name"], [(1, "Ada"), (2, "Bob"), (3, "Cat")], elapsed=0.01)
+    panel.table.selectRow(2)
+    monkeypatch.setattr(panel, "_ask_export_scope", lambda *args: "selected")
+
+    path = tmp_path / "selected.csv"
+    monkeypatch.setattr(
+        "shoveler.results_panel.QFileDialog.getSaveFileName",
+        lambda *args, **kwargs: (str(path), "CSV Files (*.csv)"),
+    )
+
+    panel._export_csv()
+
+    assert path.read_text(encoding="utf-8") == "id,name\n3,Cat\n"
+
+
+def test_results_export_scope_message_includes_selected_and_total_counts():
+    assert (
+        results_export_scope_message(3, 25)
+        == "3 of 25 rows selected. Export all rows or just selected rows?"
+    )
