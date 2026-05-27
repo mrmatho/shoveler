@@ -9,6 +9,7 @@
 #   Distribute the dist/DuckDB Workbench/ folder as a zip.
 
 from PyInstaller.utils.hooks import collect_all
+from sys import platform
 
 # collect_all picks up:
 #   - the duckdb Python package
@@ -17,6 +18,7 @@ from PyInstaller.utils.hooks import collect_all
 # Without this, the packaged app fails at runtime with an ImportError on _duckdb.
 duckdb_datas, duckdb_binaries, duckdb_hiddenimports = collect_all("duckdb")
 app_icon = "src/shoveler/assets/shoveler.ico"
+exe_icon = app_icon if platform.startswith("win") else None
 theme_files = [
     ("src/shoveler/assets/themes/light.qss", "shoveler/assets/themes"),
     ("src/shoveler/assets/themes/dark.qss", "shoveler/assets/themes"),
@@ -48,7 +50,7 @@ exe = EXE(
     bootloader_ignore_signals=False,
     strip=False,
     upx=True,
-    icon=app_icon,
+    icon=exe_icon,
     console=False,  # no console window — same effect as gui-scripts in pyproject.toml
     disable_windowed_traceback=False,
 )

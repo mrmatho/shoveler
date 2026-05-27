@@ -83,6 +83,31 @@ uv run pyinstaller shoveler.spec
 
 Output is in `dist/Shoveler/`. Distribute that folder as a zip.
 
+## Building and publishing desktop binaries with GitHub Actions
+
+This repo includes a release workflow at `.github/workflows/desktop-release.yml`.
+
+- Trigger: push a tag like `v1.2.0` (or run manually with workflow_dispatch).
+- Build matrix: Windows, macOS, Linux.
+- Output artifacts:
+  - `Shoveler-windows-x64.zip`
+  - `Shoveler-macos-universal.zip`
+  - `Shoveler-linux-x64.tar.gz`
+- Release publish: on tag pushes, artifacts are attached automatically to the GitHub Release.
+
+### Release steps
+
+1. Update version/changelog as needed.
+2. Create and push a version tag:
+
+```shell
+git tag v1.2.0
+git push origin v1.2.0
+```
+
+1. Wait for the `Desktop Release` workflow to finish.
+2. Open the matching GitHub Release and verify all three artifacts are attached.
+
 **Why --onedir and not --onefile?**
 `--onefile` extracts everything to a temp directory on every launch, which makes
 startup noticeably slow for a PySide6 app. `--onedir` is faster and easier to
