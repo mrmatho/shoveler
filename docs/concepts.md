@@ -40,9 +40,9 @@ The schema panel shows tables and columns from the active database.
 
 ## Results table
 
-The results table shows a small inferred data type badge in each column header.
+The results table shows a small data type badge in each column header.
 
-- Hover the header badge to see the inferred type.
+- Hover the header badge to see the DuckDB logical type.
 - The badge is display-only and is not included in CSV exports or clipboard copy.
 
 ## Working directory files panel

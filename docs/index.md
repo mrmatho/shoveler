@@ -22,7 +22,7 @@ Shoveler is a lightweight [DuckDB](https://duckdb.org) workbench built for learn
 - Explore tables and columns in the schema panel
 - Double-click a table name to insert it into your SQL editor
 - Export query results to CSV from the results panel
-- See inferred data type badges in the results table headers
+- See data type badges in the results table headers
 
 ## Suggested Learning Path
 

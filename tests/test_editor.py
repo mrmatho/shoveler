@@ -121,6 +121,36 @@ def test_query_tab_load_sql_from_path_failure_returns_false(qapp, monkeypatch):
     assert loaded is False
 
 
+def test_query_tab_show_result_forwards_column_types(qapp):
+    tab = QueryTab()
+    captured = {}
+
+    def fake_show_results(columns, rows, elapsed, column_types=None):
+        captured["columns"] = columns
+        captured["rows"] = rows
+        captured["elapsed"] = elapsed
+        captured["column_types"] = column_types
+
+    tab.results.show_results = fake_show_results
+
+    tab.show_result(
+        {
+            "columns": ["price"],
+            "column_types": ["DECIMAL(10,2)"],
+            "rows": [(1.23,)],
+            "elapsed": 0.01,
+            "error": None,
+        }
+    )
+
+    assert captured == {
+        "columns": ["price"],
+        "rows": [(1.23,)],
+        "elapsed": 0.01,
+        "column_types": ["DECIMAL(10,2)"],
+    }
+
+
 def test_results_panel_copy_to_clipboard_includes_headers_and_rows(qapp):
     panel = ResultsPanel()
     panel.show_results(["id", "name"], [(1, "Ada"), (None, "Bob")], elapsed=0.01)
@@ -487,25 +517,22 @@ def test_results_panel_export_csv_can_export_selected_rows(qapp, monkeypatch, tm
     assert path.read_text(encoding="utf-8") == "id,name\n3,Cat\n"
 
 
-def test_results_panel_shows_inferred_types_in_headers(qapp):
+def test_results_panel_shows_column_types_in_headers(qapp):
     panel = ResultsPanel()
     panel.show_results(
-        ["id", "name", "active"],
-        [(1, "Ada", True), (2, "Bob", False)],
+        ["price", "label", "active"],
+        [(1.23, "Ada", True), (4.56, "Bob", False)],
         elapsed=0.01,
+        column_types=["DECIMAL(10,2)", "VARCHAR", "BOOLEAN"],
     )
 
-    id_header = panel.table.horizontalHeaderItem(0)
-    name_header = panel.table.horizontalHeaderItem(1)
-    active_header = panel.table.horizontalHeaderItem(2)
+    header = panel.table.horizontalHeader()
 
-    assert id_header is not None
-    assert name_header is not None
-    assert active_header is not None
-    assert id_header.toolTip() == "Type: integer"
-    assert name_header.toolTip() == "Type: text"
-    assert active_header.toolTip() == "Type: boolean"
-    assert not id_header.icon().isNull()
+    assert header.type_label_for_section(0) == "DECIMAL(10,2)"
+    assert header.type_label_for_section(1) == "VARCHAR"
+    assert header.type_label_for_section(2) == "BOOLEAN"
+    assert header.badge_text_for_section(0) == "DECIMAL(10,2)"
+    assert header.section_tooltip_text(1) == "Type: VARCHAR"
 
     panel.close()
 
