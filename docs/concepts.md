@@ -38,6 +38,13 @@ The schema panel shows tables and columns from the active database.
 - It refreshes after query execution when connected.
 - Double-clicking a table inserts its name into the current editor.
 
+## Results table
+
+The results table shows a small data type badge in each column header.
+
+- Hover the header badge to see the DuckDB logical type.
+- The badge is display-only and is not included in CSV exports or clipboard copy.
+
 ## Working directory files panel
 
 The working directory area helps students find nearby files used in labs.

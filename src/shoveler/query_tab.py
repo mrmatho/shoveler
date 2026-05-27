@@ -168,7 +168,10 @@ class QueryTab(QWidget):
             self.results.show_error(result["error"], result["elapsed"])
         else:
             self.results.show_results(
-                result["columns"], result["rows"], result["elapsed"]
+                result["columns"],
+                result["rows"],
+                result["elapsed"],
+                column_types=result["column_types"],
             )
 
     def set_syntax_highlighting_enabled(self, enabled: bool):

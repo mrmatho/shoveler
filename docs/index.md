@@ -2,7 +2,6 @@
 
 Shoveler is a lightweight [DuckDB](https://duckdb.org) workbench built for learning and teaching SQL.
 
-
 ## Start Here
 
 1. [Quickstart (10 minutes)](quickstart.md)
@@ -23,6 +22,7 @@ Shoveler is a lightweight [DuckDB](https://duckdb.org) workbench built for learn
 - Explore tables and columns in the schema panel
 - Double-click a table name to insert it into your SQL editor
 - Export query results to CSV from the results panel
+- See data type badges in the results table headers
 
 ## Suggested Learning Path
 

@@ -100,3 +100,4 @@ to start.
 |Feature|Where to add it|
 |---|---|
 |More export formats|Add menu items in `ResultsPanel._show_export_menu()` — raw data is in `_last_rows` / `_last_columns`|
+|Results table badges|Update `ResultsPanel._populate_table()` and keep export using `_last_rows` / `_last_columns` only; badge text comes from `QueryResult.column_types`|

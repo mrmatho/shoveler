@@ -11,6 +11,7 @@ logger = logging.getLogger(__name__)
 
 class QueryResult(TypedDict):
     columns: list[str]
+    column_types: list[str]
     rows: list[QueryRow]
     elapsed: float
     error: str | None
@@ -65,10 +66,15 @@ class Database:
 
     @staticmethod
     def _build_result(
-        columns: list[str], rows: list[QueryRow], elapsed: float, error: str | None
+        columns: list[str],
+        column_types: list[str],
+        rows: list[QueryRow],
+        elapsed: float,
+        error: str | None,
     ) -> QueryResult:
         return {
             "columns": columns,
+            "column_types": column_types,
             "rows": rows,
             "elapsed": elapsed,
             "error": error,
@@ -80,23 +86,25 @@ class Database:
         return f'"{escaped_identifier}"'
 
     def execute(self, sql: str) -> QueryResult:
-        """Return a query result with columns, rows, elapsed seconds, and error."""
+        """Return a query result with columns, types, rows, elapsed seconds, and error."""
         if not self.conn:
-            return self._build_result([], [], 0.0, "No database connected.")
+            return self._build_result([], [], [], 0.0, "No database connected.")
         start = time.perf_counter()
         try:
             result = self.conn.execute(sql)
             elapsed = time.perf_counter() - start
             if result.description:
                 columns = [desc[0] for desc in result.description]
+                column_types = [str(desc[1]) for desc in result.description]
                 rows = result.fetchall()
             else:
                 columns = []
+                column_types = []
                 rows = []
-            return self._build_result(columns, rows, elapsed, None)
+            return self._build_result(columns, column_types, rows, elapsed, None)
         except Exception as e:
             elapsed = time.perf_counter() - start
-            return self._build_result([], [], elapsed, str(e))
+            return self._build_result([], [], [], elapsed, str(e))
 
     def get_tables(self) -> list[str]:
         if not self.conn:

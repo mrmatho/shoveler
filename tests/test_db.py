@@ -60,6 +60,7 @@ def test_select_returns_columns_and_rows(db_with_table):
     result = db_with_table.execute("SELECT * FROM students ORDER BY id")
     assert result["error"] is None
     assert result["columns"] == ["id", "name", "grade"]
+    assert result["column_types"] == ["INTEGER", "VARCHAR", "INTEGER"]
     assert len(result["rows"]) == 2
     assert result["rows"][0] == (1, "Alice", 85)
 
@@ -68,6 +69,7 @@ def test_invalid_sql_returns_error(db):
     result = db.execute("SELECT * FROM nonexistent_table")
     assert result["error"] is not None
     assert result["columns"] == []
+    assert result["column_types"] == []
     assert result["rows"] == []
 
 
@@ -76,11 +78,18 @@ def test_ddl_returns_count_column(db):
     result = db.execute("CREATE TABLE t (x INTEGER)")
     assert result["error"] is None
     assert result["columns"] == ["Count"]
+    assert result["column_types"] == ["BIGINT"]
 
 
 def test_elapsed_is_positive(db_with_table):
     result = db_with_table.execute("SELECT * FROM students")
     assert result["elapsed"] > 0
+
+
+def test_execute_returns_full_result_key_set(db_with_table):
+    result = db_with_table.execute("SELECT * FROM students ORDER BY id")
+
+    assert set(result.keys()) == {"columns", "column_types", "rows", "elapsed", "error"}
 
 
 # ── Schema introspection ────────────────────────────────────────────────────
