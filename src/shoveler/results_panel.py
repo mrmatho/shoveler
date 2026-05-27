@@ -1,4 +1,6 @@
 import csv
+from datetime import date, datetime, time as time_type
+from decimal import Decimal
 
 from PySide6.QtWidgets import (
     QApplication,
@@ -14,7 +16,7 @@ from PySide6.QtWidgets import (
     QMessageBox,
 )
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QColor
+from PySide6.QtGui import QColor, QIcon, QPainter, QPixmap, QFont
 
 from .config.text import (
     RESULTS_EXPORT_BUTTON,
@@ -62,7 +64,7 @@ class ResultsPanel(QWidget):
         status_layout.addStretch()
 
         self.export_btn = QPushButton(RESULTS_EXPORT_BUTTON)
-        self.export_btn.setFixedWidth(80)
+        self.export_btn.setFixedWidth(120)
         self.export_btn.setEnabled(False)
         self.export_btn.clicked.connect(self._show_export_menu)
         status_layout.addWidget(self.export_btn)
@@ -90,7 +92,8 @@ class ResultsPanel(QWidget):
     def show_results(self, columns: list, rows: list, elapsed: float):
         self._last_columns = list(columns)
         self._last_rows = list(rows)
-        self._populate_table(columns, rows)
+        column_types = self._infer_column_types(rows, len(columns))
+        self._populate_table(columns, rows, column_types)
         word = "row" if len(rows) == 1 else "rows"
         self._set_status(f"{len(rows)} {word}  ·  {elapsed * 1000:.1f} ms", "ok")
         self.export_btn.setEnabled(True)
@@ -118,10 +121,15 @@ class ResultsPanel(QWidget):
         self.status_label.setText(text)
         self.status_label.setStyleSheet(f"color: {colour}; font-size: 12px;")
 
-    def _populate_table(self, columns: list, rows: list):
+    def _populate_table(self, columns: list, rows: list, column_types: list[str]):
         self.table.setColumnCount(len(columns))
         self.table.setRowCount(len(rows))
-        self.table.setHorizontalHeaderLabels(columns)
+        for index, column in enumerate(columns):
+            header_item = QTableWidgetItem(column)
+            type_label = column_types[index] if index < len(column_types) else "UNKNOWN"
+            header_item.setToolTip(f"Type: {self._type_tooltip_text(type_label)}")
+            header_item.setIcon(self._type_badge_icon(type_label))
+            self.table.setHorizontalHeaderItem(index, header_item)
         for r, row in enumerate(rows):
             for c, val in enumerate(row):
                 text = "NULL" if val is None else str(val)
@@ -131,6 +139,112 @@ class ResultsPanel(QWidget):
                     item.setForeground(QColor(self._null_colour))
                 self.table.setItem(r, c, item)
         self.table.resizeColumnsToContents()
+
+    def _infer_column_types(self, rows: list[tuple], column_count: int) -> list[str]:
+        if column_count == 0:
+            return []
+        if not rows:
+            return ["UNKNOWN"] * column_count
+
+        column_types: list[str] = []
+        for index in range(column_count):
+            observed = [self._value_type_label(row[index]) for row in rows if row[index] is not None]
+            if not observed:
+                column_types.append("NULL")
+                continue
+
+            unique = set(observed)
+            if len(unique) == 1:
+                column_types.append(observed[0])
+            elif unique <= {"INTEGER", "REAL", "NUMERIC"}:
+                column_types.append("NUMERIC")
+            elif unique <= {"DATE", "TIME", "TIMESTAMP"}:
+                column_types.append("TEMPORAL")
+            else:
+                column_types.append("MIXED")
+        return column_types
+
+    def _value_type_label(self, value) -> str:
+        if isinstance(value, bool):
+            return "BOOLEAN"
+        if isinstance(value, int):
+            return "INTEGER"
+        if isinstance(value, float):
+            return "REAL"
+        if isinstance(value, Decimal):
+            return "NUMERIC"
+        if isinstance(value, datetime):
+            return "TIMESTAMP"
+        if isinstance(value, date):
+            return "DATE"
+        if isinstance(value, time_type):
+            return "TIME"
+        if isinstance(value, (bytes, bytearray, memoryview)):
+            return "BLOB"
+        return "TEXT"
+
+    def _type_tooltip_text(self, type_label: str) -> str:
+        if type_label == "UNKNOWN":
+            return "unknown (no rows to inspect)"
+        if type_label == "NULL":
+            return "NULL values only"
+        if type_label == "MIXED":
+            return "mixed values"
+        if type_label == "NUMERIC":
+            return "numeric values"
+        if type_label == "TEMPORAL":
+            return "temporal values"
+        return type_label.lower()
+
+    def _type_badge_icon(self, type_label: str) -> QIcon:
+        text = {
+            "BOOLEAN": "BOOL",
+            "BLOB": "BLOB",
+            "DATE": "DATE",
+            "INTEGER": "INT",
+            "MIXED": "MIX",
+            "NULL": "NULL",
+            "NUMERIC": "NUM",
+            "REAL": "REAL",
+            "TEMPORAL": "TIME",
+            "TEXT": "TEXT",
+            "TIME": "TIME",
+            "TIMESTAMP": "TS",
+            "UNKNOWN": "?",
+        }.get(type_label, "?")
+
+        pixmap = QPixmap(44, 18)
+        pixmap.fill(Qt.GlobalColor.transparent)
+
+        painter = QPainter(pixmap)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.setPen(QColor(self._null_colour))
+        painter.setBrush(QColor(self._badge_background_colour()))
+        painter.drawRoundedRect(pixmap.rect().adjusted(0, 0, -1, -1), 6, 6)
+
+        font = QFont(painter.font())
+        font.setBold(True)
+        font.setPointSize(7)
+        painter.setFont(font)
+        painter.setPen(QColor(self._badge_text_colour()))
+        painter.drawText(pixmap.rect(), Qt.AlignmentFlag.AlignCenter, text)
+        painter.end()
+
+        return QIcon(pixmap)
+
+    def _badge_background_colour(self) -> str:
+        if self._theme == "dark":
+            return "#2c3440"
+        if self._theme == "vivid":
+            return "#eef3ff"
+        return "#eef2f6"
+
+    def _badge_text_colour(self) -> str:
+        if self._theme == "dark":
+            return "#f5f7fa"
+        if self._theme == "vivid":
+            return "#1f2a44"
+        return "#243242"
 
     def _show_export_menu(self):
         menu = QMenu(self)

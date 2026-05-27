@@ -487,6 +487,29 @@ def test_results_panel_export_csv_can_export_selected_rows(qapp, monkeypatch, tm
     assert path.read_text(encoding="utf-8") == "id,name\n3,Cat\n"
 
 
+def test_results_panel_shows_inferred_types_in_headers(qapp):
+    panel = ResultsPanel()
+    panel.show_results(
+        ["id", "name", "active"],
+        [(1, "Ada", True), (2, "Bob", False)],
+        elapsed=0.01,
+    )
+
+    id_header = panel.table.horizontalHeaderItem(0)
+    name_header = panel.table.horizontalHeaderItem(1)
+    active_header = panel.table.horizontalHeaderItem(2)
+
+    assert id_header is not None
+    assert name_header is not None
+    assert active_header is not None
+    assert id_header.toolTip() == "Type: integer"
+    assert name_header.toolTip() == "Type: text"
+    assert active_header.toolTip() == "Type: boolean"
+    assert not id_header.icon().isNull()
+
+    panel.close()
+
+
 def test_results_export_scope_message_includes_selected_and_total_counts():
     assert (
         results_export_scope_message(3, 25)
