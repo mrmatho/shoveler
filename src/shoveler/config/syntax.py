@@ -90,7 +90,6 @@ SQL_FUNCTIONS = (
     "DATE_TRUNC",
     "CURRENT_DATE",
     "CURRENT_TIMESTAMP",
-    ""
 )
 
 _SYNTAX_PALETTES = {
