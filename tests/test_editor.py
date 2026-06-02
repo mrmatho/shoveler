@@ -1,8 +1,8 @@
 import os
 
 import pytest
-from PySide6.QtCore import QSettings
-from PySide6.QtGui import QTextDocument
+from PySide6.QtCore import QSettings, Qt
+from PySide6.QtGui import QKeyEvent, QTextCursor, QTextDocument
 from PySide6.QtWidgets import QApplication, QListWidgetItem, QMessageBox
 
 from shoveler.config.theme import AVAILABLE_THEMES, DEFAULT_THEME, load_theme_stylesheet, normalize_theme
@@ -75,6 +75,104 @@ def test_sql_editor_line_number_gutter_width_grows_with_more_lines(qapp):
     editor.setPlainText("\n".join(f"SELECT {index};" for index in range(1, 201)))
 
     assert editor.line_number_area_width() >= initial_width
+
+
+def test_sql_editor_tab_completion_prefers_keywords_over_tables_columns_and_functions(qapp):
+    editor = SqlEditor()
+    editor.set_completion_metadata(["sessions"], ["section"])
+    editor.setPlainText("se")
+    editor.moveCursor(QTextCursor.MoveOperation.End)
+
+    event = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_Tab, Qt.KeyboardModifier.NoModifier)
+    editor.keyPressEvent(event)
+
+    assert editor.toPlainText() == "SELECT"
+
+
+def test_sql_editor_tab_completion_prefers_tables_over_columns_and_functions(qapp):
+    editor = SqlEditor()
+    editor.set_completion_metadata(["customers"], ["country"])
+    editor.setPlainText("cu")
+    editor.moveCursor(QTextCursor.MoveOperation.End)
+
+    event = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_Tab, Qt.KeyboardModifier.NoModifier)
+    editor.keyPressEvent(event)
+
+    assert editor.toPlainText() == "customers"
+
+
+def test_sql_editor_tab_completion_prefers_columns_over_functions(qapp):
+    editor = SqlEditor()
+    editor.set_completion_metadata([], ["date_of_birth"])
+    editor.setPlainText("da")
+    editor.moveCursor(QTextCursor.MoveOperation.End)
+
+    event = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_Tab, Qt.KeyboardModifier.NoModifier)
+    editor.keyPressEvent(event)
+
+    assert editor.toPlainText() == "date_of_birth"
+
+
+def test_sql_editor_tab_with_no_completion_does_not_replace_token(qapp):
+    editor = SqlEditor()
+    editor.set_completion_metadata([], [])
+    editor.setPlainText("zzz")
+    editor.moveCursor(QTextCursor.MoveOperation.End)
+
+    event = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_Tab, Qt.KeyboardModifier.NoModifier)
+    editor.keyPressEvent(event)
+
+    assert editor.toPlainText() == "zzz"
+
+
+def test_sql_editor_tab_completion_includes_sql_type_names(qapp):
+    editor = SqlEditor()
+    editor.set_completion_metadata([], [])
+    editor.setPlainText("dat")
+    editor.moveCursor(QTextCursor.MoveOperation.End)
+
+    event = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_Tab, Qt.KeyboardModifier.NoModifier)
+    editor.keyPressEvent(event)
+
+    assert editor.toPlainText() == "DATE"
+
+
+def test_sql_editor_completion_preview_returns_ranked_candidate(qapp):
+    editor = SqlEditor()
+    editor.set_completion_metadata(["sessions"], ["section"])
+    editor.setPlainText("sele")
+    editor.moveCursor(QTextCursor.MoveOperation.End)
+
+    assert editor._completion_preview() == ("SELECT", 0)
+
+
+def test_sql_editor_completion_preview_includes_other_option_count(qapp):
+    editor = SqlEditor()
+    editor.set_completion_metadata(["sessions"], ["section"])
+    editor.setPlainText("se")
+    editor.moveCursor(QTextCursor.MoveOperation.End)
+
+    assert editor._completion_preview() == ("SELECT", 3)
+
+
+def test_sql_editor_completion_preview_is_none_for_exact_match(qapp):
+    editor = SqlEditor()
+    editor.set_completion_metadata([], [])
+    editor.setPlainText("SELECT")
+    editor.moveCursor(QTextCursor.MoveOperation.End)
+
+    assert editor._completion_preview() is None
+
+
+def test_sql_editor_completion_hint_text_with_other_options():
+    assert SqlEditor._completion_hint_text("CREATE", 2) == "Tab for CREATE (or 2 other options)"
+
+
+def test_sql_editor_completion_hint_uses_delay_timer(qapp):
+    editor = SqlEditor()
+
+    assert editor._completion_hint_timer.isSingleShot() is True
+    assert editor._completion_hint_timer.interval() == editor._COMPLETION_HINT_DELAY_MS
 
 
 @pytest.mark.parametrize(
@@ -577,6 +675,27 @@ def test_main_window_run_query_success_refreshes_schema_and_sets_success_status(
     assert refreshed == [window.db]
     assert status_messages[-1][1] == 4000
     assert "row" in status_messages[-1][0]
+
+    window.close()
+
+
+def test_main_window_run_query_refreshes_completion_metadata(qapp, monkeypatch):
+    window = MainWindow()
+    calls = []
+    monkeypatch.setattr(window, "_refresh_completion_metadata", lambda: calls.append(True))
+
+    fake_result = {
+        "columns": [],
+        "column_types": [],
+        "rows": [],
+        "elapsed": 0.01,
+        "error": None,
+    }
+    monkeypatch.setattr(window.db, "execute", lambda sql: fake_result)
+
+    window._run_query("SELECT 1")
+
+    assert calls == [True]
 
     window.close()
 

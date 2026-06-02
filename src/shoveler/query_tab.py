@@ -177,6 +177,9 @@ class QueryTab(QWidget):
     def set_syntax_highlighting_enabled(self, enabled: bool):
         self.editor.set_syntax_highlighting_enabled(enabled)
 
+    def set_completion_metadata(self, table_names: list[str], column_names: list[str]):
+        self.editor.set_completion_metadata(table_names, column_names)
+
     def set_theme(self, theme: str):
         self.editor.set_theme(theme)
         self.results.set_theme(theme)

@@ -266,6 +266,7 @@ class MainWindow(QMainWindow):
         tab.run_requested.connect(self._run_query)
         idx = self.tab_widget.addTab(tab, tab_title(n))
         self.tab_widget.setCurrentIndex(idx)
+        self._refresh_completion_metadata()
         return tab
 
     def _close_tab(self, index: int):
@@ -289,6 +290,7 @@ class MainWindow(QMainWindow):
         # Refresh schema — query may have created/dropped tables
         if self.db.is_connected:
             self.schema_panel.refresh(self.db)
+        self._refresh_completion_metadata()
         if result["error"]:
             self.statusBar().showMessage(status_query_error(result["error"]), 5000)
         else:
@@ -310,6 +312,7 @@ class MainWindow(QMainWindow):
             self.db.open_file(path)
             self.db_status.set_file_mode(path)
             self.schema_panel.refresh(self.db)
+            self._refresh_completion_metadata()
             self.setWindowTitle(window_title_with_path(path))
             self.save_as_action.setEnabled(True)
             self.statusBar().showMessage(status_opened(path), 4000)
@@ -327,9 +330,30 @@ class MainWindow(QMainWindow):
         self.db.new_memory()
         self.db_status.set_memory_mode()
         self.schema_panel.refresh(self.db)
+        self._refresh_completion_metadata()
         self.setWindowTitle(window_title_in_memory())
         self.save_as_action.setEnabled(True)
         self.statusBar().showMessage(STATUS_IN_MEMORY_CREATED, 4000)
+
+    def _refresh_completion_metadata(self):
+        table_names: list[str] = []
+        column_names: list[str] = []
+
+        if self.db.is_connected:
+            table_names = self.db.get_tables()
+            seen_columns: set[str] = set()
+            for table_name in table_names:
+                for column_name, _column_type in self.db.get_columns(table_name):
+                    key = column_name.casefold()
+                    if key in seen_columns:
+                        continue
+                    seen_columns.add(key)
+                    column_names.append(column_name)
+
+        for index in range(self.tab_widget.count()):
+            tab = self.tab_widget.widget(index)
+            if isinstance(tab, QueryTab):
+                tab.set_completion_metadata(table_names, column_names)
 
     def _save_database_as(self) -> bool:
         if not self.db.is_connected:
