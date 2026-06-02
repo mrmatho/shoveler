@@ -71,6 +71,10 @@ Use File > Save Database As... to persist an in-memory database to disk.
 
 Run a query, then use the results export menu to save CSV output.
 
+## 8) Export your SQL
+
+Use the **Export SQL** button in the query tab toolbar to save your editor content as a `.sql` file.
+
 ## Next
 
 - Read [Core Concepts](concepts.md)

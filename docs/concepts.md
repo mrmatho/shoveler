@@ -60,6 +60,14 @@ The working directory area helps students find nearby files used in labs.
 - `Ctrl+Enter`: Run query
 - `Ctrl+T`: New query tab
 
+## Exporting SQL
+
+Each query tab has an **Export SQL** button that saves the current editor content to a `.sql` file.
+
+- If the editor is empty, an information dialog is shown instead.
+- The `.sql` extension is appended automatically if not included in the chosen filename.
+- If the file cannot be written, an error dialog is shown.
+
 ## Themes and readability
 
 Shoveler includes light and dark themes.

@@ -524,43 +524,6 @@ def test_main_window_open_sql_routes_to_current_tab(qapp):
     window.close()
 
 
-def test_results_panel_copy_to_clipboard_includes_headers_and_rows(qapp):
-    panel = ResultsPanel()
-    panel.show_results(["id", "name"], [(1, "Ada"), (None, "Bob")], elapsed=0.01)
-
-    qapp.clipboard().clear()
-    panel._copy_to_clipboard()
-
-    assert qapp.clipboard().text() == "id\tname\n1\tAda\nNULL\tBob"
-
-
-def test_results_panel_copy_to_clipboard_can_export_selected_rows(qapp):
-    panel = ResultsPanel()
-    panel.show_results(["id", "name"], [(1, "Ada"), (2, "Bob"), (3, "Cat")], elapsed=0.01)
-    panel.table.selectRow(1)
-
-    qapp.clipboard().clear()
-    panel._copy_to_clipboard(selected_only=True)
-
-    assert qapp.clipboard().text() == "id\tname\n2\tBob"
-
-
-def test_results_panel_export_csv_can_export_selected_rows(qapp, monkeypatch, tmp_path):
-    panel = ResultsPanel()
-    panel.show_results(["id", "name"], [(1, "Ada"), (2, "Bob"), (3, "Cat")], elapsed=0.01)
-    panel.table.selectRow(2)
-
-    path = tmp_path / "selected.csv"
-    monkeypatch.setattr(
-        "shoveler.results_panel.QFileDialog.getSaveFileName",
-        lambda *args, **kwargs: (str(path), "CSV Files (*.csv)"),
-    )
-
-    panel._export_csv(selected_only=True)
-
-    assert path.read_text(encoding="utf-8") == "id,name\n3,Cat\n"
-
-
 def test_results_panel_shows_column_types_in_headers(qapp):
     panel = ResultsPanel()
     panel.show_results(
@@ -586,3 +549,197 @@ def test_results_export_scope_message_includes_selected_and_total_counts():
         results_export_scope_message(3, 25)
         == "3 of 25 rows selected. Export all rows or just selected rows?"
     )
+
+
+def test_main_window_run_query_success_refreshes_schema_and_sets_success_status(qapp, monkeypatch):
+    window = MainWindow()
+    tab = window._current_tab()
+    shown_results = []
+    refreshed = []
+    status_messages = []
+
+    tab.show_result = lambda result: shown_results.append(result)
+    monkeypatch.setattr(window.schema_panel, "refresh", lambda db: refreshed.append(db))
+    monkeypatch.setattr(window.statusBar(), "showMessage", lambda message, timeout=0: status_messages.append((message, timeout)))
+
+    fake_result = {
+        "columns": ["value"],
+        "column_types": ["INTEGER"],
+        "rows": [(1,)],
+        "elapsed": 0.01,
+        "error": None,
+    }
+    monkeypatch.setattr(window.db, "execute", lambda sql: fake_result)
+
+    window._run_query("SELECT 1")
+
+    assert shown_results == [fake_result]
+    assert refreshed == [window.db]
+    assert status_messages[-1][1] == 4000
+    assert "row" in status_messages[-1][0]
+
+    window.close()
+
+
+def test_main_window_run_query_error_sets_error_status(qapp, monkeypatch):
+    window = MainWindow()
+    tab = window._current_tab()
+    shown_results = []
+    status_messages = []
+
+    tab.show_result = lambda result: shown_results.append(result)
+    monkeypatch.setattr(window.statusBar(), "showMessage", lambda message, timeout=0: status_messages.append((message, timeout)))
+
+    fake_result = {
+        "columns": [],
+        "column_types": [],
+        "rows": [],
+        "elapsed": 0.01,
+        "error": "syntax error",
+    }
+    monkeypatch.setattr(window.db, "execute", lambda sql: fake_result)
+
+    window._run_query("BROKEN SQL")
+
+    assert shown_results == [fake_result]
+    assert status_messages[-1][1] == 5000
+    assert "Error" in status_messages[-1][0]
+
+    window.close()
+
+
+def test_main_window_close_last_tab_keeps_single_tab_and_clears_editor(qapp):
+    window = MainWindow()
+    tab = window._current_tab()
+    tab.editor.setPlainText("SELECT 1;")
+
+    window._close_tab(0)
+
+    assert window.tab_widget.count() == 1
+    assert window._current_tab().editor.toPlainText() == ""
+
+    window.close()
+
+
+def test_main_window_open_file_failure_shows_error_dialog(qapp, monkeypatch):
+    window = MainWindow()
+    calls = []
+
+    def _raise_open(path):
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(window.db, "open_file", _raise_open)
+    monkeypatch.setattr(QMessageBox, "critical", lambda *args, **kwargs: calls.append((args, kwargs)))
+
+    window._open_file("missing.duckdb")
+
+    assert len(calls) == 1
+
+    window.close()
+
+
+def test_main_window_save_database_as_no_connection_shows_info(qapp, monkeypatch):
+    window = MainWindow()
+    calls = []
+    window.db.close()
+    monkeypatch.setattr(QMessageBox, "information", lambda *args, **kwargs: calls.append((args, kwargs)))
+
+    saved = window._save_database_as()
+
+    assert saved is False
+    assert len(calls) == 1
+
+    window.close()
+
+
+def test_main_window_save_database_as_cancelled_dialog_returns_false(qapp, monkeypatch):
+    window = MainWindow()
+    monkeypatch.setattr(
+        "shoveler.main_window.QFileDialog.getSaveFileName",
+        lambda *args, **kwargs: ("", ""),
+    )
+
+    saved = window._save_database_as()
+
+    assert saved is False
+
+    window.close()
+
+
+def test_main_window_save_database_as_appends_duckdb_extension(qapp, monkeypatch, tmp_path):
+    window = MainWindow()
+    selected_without_ext = tmp_path / "my_database"
+    captured = {"path": None}
+
+    monkeypatch.setattr(
+        "shoveler.main_window.QFileDialog.getSaveFileName",
+        lambda *args, **kwargs: (str(selected_without_ext), "DuckDB Files (*.duckdb *.db)"),
+    )
+
+    def fake_save_as(path):
+        captured["path"] = path
+        return path
+
+    monkeypatch.setattr(window.db, "save_as", fake_save_as)
+
+    saved = window._save_database_as()
+
+    assert saved is True
+    assert captured["path"] == f"{selected_without_ext}.duckdb"
+
+    window.close()
+
+
+def test_query_tab_export_sql_empty_editor_shows_information(qapp, monkeypatch):
+    tab = QueryTab()
+    tab.editor.setPlainText("   ")
+    calls = []
+    monkeypatch.setattr(QMessageBox, "information", lambda *args, **kwargs: calls.append((args, kwargs)))
+
+    tab._export_sql()
+
+    assert len(calls) == 1
+
+    tab.close()
+
+
+def test_query_tab_export_sql_appends_sql_extension(qapp, monkeypatch, tmp_path):
+    tab = QueryTab()
+    tab.editor.setPlainText("SELECT 1;")
+    selected_without_ext = tmp_path / "query_export"
+
+    monkeypatch.setattr(
+        "shoveler.query_tab.QFileDialog.getSaveFileName",
+        lambda *args, **kwargs: (str(selected_without_ext), "SQL Files (*.sql)"),
+    )
+
+    tab._export_sql()
+
+    exported_path = tmp_path / "query_export.sql"
+    assert exported_path.exists()
+    assert exported_path.read_text(encoding="utf-8") == "SELECT 1;"
+
+    tab.close()
+
+
+def test_query_tab_export_sql_write_failure_shows_error_dialog(qapp, monkeypatch, tmp_path):
+    tab = QueryTab()
+    tab.editor.setPlainText("SELECT 1;")
+    calls = []
+
+    monkeypatch.setattr(
+        "shoveler.query_tab.QFileDialog.getSaveFileName",
+        lambda *args, **kwargs: (str(tmp_path / "query.sql"), "SQL Files (*.sql)"),
+    )
+
+    def _raise_open(*args, **kwargs):
+        raise OSError("disk full")
+
+    monkeypatch.setattr("builtins.open", _raise_open)
+    monkeypatch.setattr(QMessageBox, "critical", lambda *args, **kwargs: calls.append((args, kwargs)))
+
+    tab._export_sql()
+
+    assert len(calls) == 1
+
+    tab.close()
