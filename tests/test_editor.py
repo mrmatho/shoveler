@@ -3,15 +3,16 @@ import os
 import pytest
 from PySide6.QtCore import QSettings
 from PySide6.QtGui import QTextDocument
-from PySide6.QtWidgets import QApplication, QMessageBox
+from PySide6.QtWidgets import QApplication, QListWidgetItem, QMessageBox
 
 from shoveler.config.theme import AVAILABLE_THEMES, DEFAULT_THEME, load_theme_stylesheet, normalize_theme
-from shoveler.config.text import results_export_scope_message
+from shoveler.config.text import SCHEMA_NO_FILES, results_export_scope_message
 from shoveler.editor import SqlEditor, SqlHighlighter
 from shoveler.db_status_widget import DatabaseStatusWidget
 from shoveler.main_window import MainWindow
 from shoveler.query_tab import QueryTab
 from shoveler.results_panel import ResultsPanel
+from shoveler.schema_panel import SchemaPanel
 
 
 @pytest.fixture(scope="session")
@@ -460,6 +461,49 @@ def test_main_window_open_sql_action_uses_ctrl_o(qapp):
     assert window.open_sql_action.shortcut().toString() == "Ctrl+O"
 
     window.close()
+
+
+def test_main_window_new_tab_action_uses_ctrl_t(qapp):
+    window = MainWindow()
+
+    assert window.new_tab_action.shortcut().toString() == "Ctrl+T"
+
+    window.close()
+
+
+def test_main_window_insert_file_name_inserts_into_editor(qapp):
+    window = MainWindow()
+    tab = window._current_tab()
+
+    window._insert_file_name("students.csv")
+
+    assert tab.editor.toPlainText() == "students.csv"
+
+    window.close()
+
+
+def test_schema_panel_emits_file_double_clicked(qapp):
+    panel = SchemaPanel()
+    emitted = []
+    panel.file_double_clicked.connect(emitted.append)
+
+    panel._on_file_double_click(QListWidgetItem("students.csv"))
+
+    assert emitted == ["students.csv"]
+
+    panel.close()
+
+
+def test_schema_panel_ignores_no_files_placeholder_double_click(qapp):
+    panel = SchemaPanel()
+    emitted = []
+    panel.file_double_clicked.connect(emitted.append)
+
+    panel._on_file_double_click(QListWidgetItem(SCHEMA_NO_FILES))
+
+    assert emitted == []
+
+    panel.close()
 
 
 def test_main_window_open_sql_routes_to_current_tab(qapp):

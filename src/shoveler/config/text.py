@@ -13,6 +13,7 @@ MENU_FILE = "&File"
 MENU_VIEW = "&View"
 MENU_THEME = "Theme"
 
+ACTION_NEW_QUERY_TAB = "New Query Tab"
 ACTION_OPEN_SQL = "Open SQL..."
 ACTION_SAVE_DATABASE_AS = "Save Database As..."
 ACTION_SYNTAX_HIGHLIGHTING = "Syntax highlighting"

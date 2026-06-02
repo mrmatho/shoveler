@@ -10,6 +10,7 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QPushButton,
     QListWidget,
+    QListWidgetItem,
     QSplitter,
     QFileDialog,
     QMessageBox,
@@ -35,6 +36,7 @@ from .config.ui import get_schema_secondary_text
 
 class SchemaPanel(QWidget):
     table_double_clicked = Signal(str)
+    file_double_clicked = Signal(str)
     working_directory_changed = Signal(str)
 
     def __init__(self, parent=None):
@@ -99,6 +101,7 @@ class SchemaPanel(QWidget):
         self.files_list = QListWidget()
         self.files_list.setAlternatingRowColors(True)
         self.files_list.setStyleSheet("font-size: 12px;")
+        self.files_list.itemDoubleClicked.connect(self._on_file_double_click)
         files_layout.addWidget(self.files_list)
 
         footer_row = QHBoxLayout()
@@ -232,3 +235,9 @@ class SchemaPanel(QWidget):
     def _on_double_click(self, item: QTreeWidgetItem, column: int):
         if item.data(0, Qt.ItemDataRole.UserRole) == "table":
             self.table_double_clicked.emit(item.text(0))
+
+    def _on_file_double_click(self, item: QListWidgetItem):
+        file_name = item.text().strip()
+        if not file_name or file_name == SCHEMA_NO_FILES:
+            return
+        self.file_double_clicked.emit(file_name)

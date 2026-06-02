@@ -18,6 +18,7 @@ from .db_status_widget import DatabaseStatusWidget
 from .schema_panel import SchemaPanel
 from .query_tab import QueryTab
 from .config.text import (
+    ACTION_NEW_QUERY_TAB,
     ACTION_OPEN_SQL,
     ACTION_SAVE_DATABASE_AS,
     ACTION_SYNTAX_HIGHLIGHTING,
@@ -135,6 +136,11 @@ class MainWindow(QMainWindow):
     def _build_menu(self):
         file_menu = self.menuBar().addMenu(MENU_FILE)
 
+        self.new_tab_action = QAction(ACTION_NEW_QUERY_TAB, self)
+        self.new_tab_action.setShortcut("Ctrl+T")
+        self.new_tab_action.triggered.connect(self._add_tab)
+        file_menu.addAction(self.new_tab_action)
+
         self.open_sql_action = QAction(ACTION_OPEN_SQL, self)
         self.open_sql_action.setShortcut("Ctrl+O")
         self.open_sql_action.triggered.connect(self._open_sql_file)
@@ -188,6 +194,7 @@ class MainWindow(QMainWindow):
         self.db_status.save_requested.connect(self._save_database_as)
         self.db_status.checkpoint_requested.connect(self._checkpoint)
         self.schema_panel.table_double_clicked.connect(self._insert_table_name)
+        self.schema_panel.file_double_clicked.connect(self._insert_file_name)
         self.schema_panel.working_directory_changed.connect(
             self._on_working_directory_changed
         )
@@ -365,6 +372,12 @@ class MainWindow(QMainWindow):
         tab = self._current_tab()
         if tab:
             tab.editor.insertPlainText(table_name)
+            tab.editor.setFocus()
+
+    def _insert_file_name(self, file_name: str):
+        tab = self._current_tab()
+        if tab:
+            tab.editor.insertPlainText(file_name)
             tab.editor.setFocus()
 
     def _on_working_directory_changed(self, path: str):
