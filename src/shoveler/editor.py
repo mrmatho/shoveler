@@ -146,6 +146,13 @@ class SqlEditor(QPlainTextEdit):
         self._line_number_border = QColor(line_number_palette["border"])
         self._completion_tables: list[str] = []
         self._completion_columns: list[str] = []
+        self._completion_cycle_prefix: str | None = None
+        self._completion_cycle_start: int | None = None
+        self._completion_cycle_end: int | None = None
+        self._completion_cycle_matches: list[str] = []
+        self._completion_cycle_index: int = -1
+        self._completion_cycle_direction: int = 1
+        self._suspend_completion_tracking = False
         self._completion_hint_timer = QTimer(self)
         self._completion_hint_timer.setSingleShot(True)
         self._completion_hint_timer.setInterval(self._COMPLETION_HINT_DELAY_MS)
@@ -153,13 +160,14 @@ class SqlEditor(QPlainTextEdit):
         self.set_syntax_highlighting_enabled(True)
         self.blockCountChanged.connect(self._update_line_number_area_width)
         self.updateRequest.connect(self._update_line_number_area)
-        self.textChanged.connect(self._queue_completion_hint)
-        self.cursorPositionChanged.connect(self._queue_completion_hint)
+        self.textChanged.connect(self._on_text_changed)
+        self.cursorPositionChanged.connect(self._on_cursor_position_changed)
         self._update_line_number_area_width(0)
 
     def set_completion_metadata(self, table_names: list[str], column_names: list[str]):
         self._completion_tables = list(table_names)
         self._completion_columns = list(column_names)
+        self._invalidate_completion_cycle()
         self._queue_completion_hint()
 
     @property
@@ -241,12 +249,21 @@ class SqlEditor(QPlainTextEdit):
             event.key() == Qt.Key.Key_Tab
             and event.modifiers() == Qt.KeyboardModifier.NoModifier
         )
+        is_shift_tab = (
+            event.key() == Qt.Key.Key_Backtab
+            or (
+                event.key() == Qt.Key.Key_Tab
+                and event.modifiers() == Qt.KeyboardModifier.ShiftModifier
+            )
+        )
         is_f5 = event.key() == Qt.Key.Key_F5
         is_ctrl_enter = (
             event.key() == Qt.Key.Key_Return
             and event.modifiers() == Qt.KeyboardModifier.ControlModifier
         )
-        if is_plain_tab and self._try_apply_completion():
+        if is_plain_tab and self._try_apply_completion(direction=1):
+            return
+        if is_shift_tab and self._try_apply_completion(direction=-1):
             return
         if is_f5 or is_ctrl_enter:
             self.run_requested.emit()
@@ -255,8 +272,19 @@ class SqlEditor(QPlainTextEdit):
 
     def focusOutEvent(self, event):
         self._completion_hint_timer.stop()
+        self._invalidate_completion_cycle()
         QToolTip.hideText()
         super().focusOutEvent(event)
+
+    def _on_text_changed(self):
+        if not self._suspend_completion_tracking:
+            self._invalidate_completion_cycle()
+        self._queue_completion_hint()
+
+    def _on_cursor_position_changed(self):
+        if not self._suspend_completion_tracking and not self._completion_cycle_is_valid():
+            self._invalidate_completion_cycle()
+        self._queue_completion_hint()
 
     def get_sql(self) -> str:
         cursor = self.textCursor()
@@ -322,7 +350,78 @@ class SqlEditor(QPlainTextEdit):
             if candidate.casefold().startswith(key)
         ]
 
+    def _invalidate_completion_cycle(self):
+        self._completion_cycle_prefix = None
+        self._completion_cycle_start = None
+        self._completion_cycle_end = None
+        self._completion_cycle_matches = []
+        self._completion_cycle_index = -1
+        self._completion_cycle_direction = 1
+
+    def _completion_cycle_is_valid(self) -> bool:
+        if (
+            self._completion_cycle_start is None
+            or self._completion_cycle_end is None
+            or not self._completion_cycle_matches
+            or self._completion_cycle_index < 0
+            or self._completion_cycle_index >= len(self._completion_cycle_matches)
+        ):
+            return False
+
+        cursor = self.textCursor()
+        if cursor.hasSelection() or cursor.position() != self._completion_cycle_end:
+            return False
+
+        selection_cursor = self.textCursor()
+        selection_cursor.setPosition(self._completion_cycle_start)
+        selection_cursor.setPosition(
+            self._completion_cycle_end,
+            selection_cursor.MoveMode.KeepAnchor,
+        )
+        token_text = selection_cursor.selectedText()
+        expected = self._completion_cycle_matches[self._completion_cycle_index]
+        return token_text == expected
+
+    def _completion_cycle_next(self, direction: int | None = None) -> tuple[str, int] | None:
+        if not self._completion_cycle_is_valid() or len(self._completion_cycle_matches) <= 1:
+            return None
+
+        step = direction if direction in {-1, 1} else self._completion_cycle_direction
+        next_index = (self._completion_cycle_index + step) % len(self._completion_cycle_matches)
+        return self._completion_cycle_matches[next_index], next_index
+
+    def _apply_completion_text(self, completion: str, start_position: int, end_position: int):
+        cursor = self.textCursor()
+        self._suspend_completion_tracking = True
+        try:
+            cursor.beginEditBlock()
+            cursor.setPosition(start_position)
+            cursor.setPosition(end_position, cursor.MoveMode.KeepAnchor)
+            cursor.insertText(completion)
+            cursor.endEditBlock()
+            self.setTextCursor(cursor)
+        finally:
+            self._suspend_completion_tracking = False
+
+    def _begin_completion_cycle(
+        self,
+        prefix: str,
+        matches: list[str],
+        selected_index: int,
+        start_position: int,
+    ):
+        self._completion_cycle_prefix = prefix
+        self._completion_cycle_matches = list(matches)
+        self._completion_cycle_index = selected_index
+        self._completion_cycle_start = start_position
+        self._completion_cycle_end = start_position + len(matches[selected_index])
+
     def _completion_preview(self) -> tuple[str, int] | None:
+        cycle_next = self._completion_cycle_next(self._completion_cycle_direction)
+        if cycle_next is not None:
+            completion, _next_index = cycle_next
+            return completion, len(self._completion_cycle_matches) - 1
+
         completion_context = self._completion_prefix_span()
         if completion_context is None:
             return None
@@ -366,25 +465,49 @@ class SqlEditor(QPlainTextEdit):
             self,
         )
 
-    def _try_apply_completion(self) -> bool:
+    def _try_apply_completion(self, direction: int = 1) -> bool:
+        cycle_next = self._completion_cycle_next(direction)
+        if cycle_next is not None and self._completion_cycle_start is not None and self._completion_cycle_end is not None:
+            completion, next_index = cycle_next
+            self._apply_completion_text(
+                completion,
+                self._completion_cycle_start,
+                self._completion_cycle_end,
+            )
+            self._completion_cycle_index = next_index
+            self._completion_cycle_direction = direction
+            self._completion_cycle_end = self._completion_cycle_start + len(completion)
+            self._completion_hint_timer.stop()
+            QToolTip.hideText()
+            self._queue_completion_hint()
+            return True
+
         completion_context = self._completion_prefix_span()
         if completion_context is None:
             return False
 
         prefix, start_position, end_position = completion_context
-        completion = self._best_completion(prefix)
-        if not completion:
-            return False
-        if completion.casefold() == prefix.casefold():
+        matches = self._completion_matches(prefix)
+        if not matches:
             return False
 
-        cursor = self.textCursor()
-        cursor.beginEditBlock()
-        cursor.setPosition(start_position)
-        cursor.setPosition(end_position, cursor.MoveMode.KeepAnchor)
-        cursor.insertText(completion)
-        cursor.endEditBlock()
-        self.setTextCursor(cursor)
+        selected_index = 0 if direction >= 0 else len(matches) - 1
+        completion = matches[selected_index]
+        if completion.casefold() == prefix.casefold():
+            if len(matches) == 1:
+                return False
+            selected_index = 1 if direction >= 0 else len(matches) - 2
+            completion = matches[selected_index]
+
+        self._apply_completion_text(completion, start_position, end_position)
+        self._begin_completion_cycle(
+            prefix=prefix,
+            matches=matches,
+            selected_index=selected_index,
+            start_position=start_position,
+        )
+        self._completion_cycle_direction = direction
         self._completion_hint_timer.stop()
         QToolTip.hideText()
+        self._queue_completion_hint()
         return True

@@ -137,6 +137,72 @@ def test_sql_editor_tab_completion_includes_sql_type_names(qapp):
     assert editor.toPlainText() == "DATE"
 
 
+def test_sql_editor_repeated_tab_cycles_completion_options(qapp):
+    editor = SqlEditor()
+    editor.set_completion_metadata(["sessions"], ["section"])
+    editor.setPlainText("se")
+    editor.moveCursor(QTextCursor.MoveOperation.End)
+
+    event = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_Tab, Qt.KeyboardModifier.NoModifier)
+    editor.keyPressEvent(event)
+    assert editor.toPlainText() == "SELECT"
+
+    editor.keyPressEvent(event)
+    assert editor.toPlainText() == "SET"
+
+    editor.keyPressEvent(event)
+    assert editor.toPlainText() == "sessions"
+
+
+def test_sql_editor_shift_tab_cycles_completion_options_backward(qapp):
+    editor = SqlEditor()
+    editor.set_completion_metadata(["sessions"], ["section"])
+    editor.setPlainText("se")
+    editor.moveCursor(QTextCursor.MoveOperation.End)
+
+    shift_tab_event = QKeyEvent(
+        QKeyEvent.Type.KeyPress,
+        Qt.Key.Key_Backtab,
+        Qt.KeyboardModifier.ShiftModifier,
+    )
+    editor.keyPressEvent(shift_tab_event)
+    assert editor.toPlainText() == "section"
+
+    editor.keyPressEvent(shift_tab_event)
+    assert editor.toPlainText() == "sessions"
+
+    editor.keyPressEvent(shift_tab_event)
+    assert editor.toPlainText() == "SET"
+
+
+def test_sql_editor_completion_preview_shows_next_option_while_cycling(qapp):
+    editor = SqlEditor()
+    editor.set_completion_metadata(["sessions"], ["section"])
+    editor.setPlainText("se")
+    editor.moveCursor(QTextCursor.MoveOperation.End)
+
+    event = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_Tab, Qt.KeyboardModifier.NoModifier)
+    editor.keyPressEvent(event)
+
+    assert editor._completion_preview() == ("SET", 3)
+
+
+def test_sql_editor_completion_preview_follows_shift_tab_cycle_direction(qapp):
+    editor = SqlEditor()
+    editor.set_completion_metadata(["sessions"], ["section"])
+    editor.setPlainText("se")
+    editor.moveCursor(QTextCursor.MoveOperation.End)
+
+    shift_tab_event = QKeyEvent(
+        QKeyEvent.Type.KeyPress,
+        Qt.Key.Key_Backtab,
+        Qt.KeyboardModifier.ShiftModifier,
+    )
+    editor.keyPressEvent(shift_tab_event)
+
+    assert editor._completion_preview() == ("sessions", 3)
+
+
 def test_sql_editor_completion_preview_returns_ranked_candidate(qapp):
     editor = SqlEditor()
     editor.set_completion_metadata(["sessions"], ["section"])
