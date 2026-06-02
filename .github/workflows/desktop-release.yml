@@ -64,6 +64,40 @@ jobs:
       - name: Build app (PyInstaller)
         run: uv run --python 3.12 pyinstaller shoveler.spec --noconfirm --clean
 
+      - name: Sign Windows executables
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          CERTIFICATE_BASE64: ${{ secrets.WINDOWS_CERTIFICATE }}
+          CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $pfxPath = "$env:RUNNER_TEMP\certificate.pfx"
+          [System.Convert]::FromBase64String($env:CERTIFICATE_BASE64) | Set-Content $pfxPath -AsByteStream
+          $signtool = Get-ChildItem -Path "C:\Program Files (x86)\Windows Kits\10\bin" `
+            -Recurse -Filter signtool.exe |
+            Where-Object { $_.FullName -match "x64" } |
+            Sort-Object FullName -Descending |
+            Select-Object -First 1 -ExpandProperty FullName
+          "SIGNTOOL=$signtool" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          Get-ChildItem -Path dist\Shoveler -Recurse -Include *.exe,*.dll,*.pyd | ForEach-Object {
+            & $signtool sign `
+              /fd SHA256 `
+              /f $pfxPath `
+              /p "$env:CERTIFICATE_PASSWORD" `
+              /tr http://timestamp.digicert.com `
+              /td SHA256 `
+              $_.FullName
+          }
+          Remove-Item $pfxPath -Force
+
+      - name: Verify Windows signature
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          & "$env:SIGNTOOL" verify /pa /v dist\Shoveler\Shoveler.exe
+
       - name: Verify bundled theme assets
         if: runner.os == 'Windows'
         shell: pwsh
