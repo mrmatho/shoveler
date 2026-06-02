@@ -35,8 +35,16 @@ from .config.text import (
 
 class QueryTab(QWidget):
     run_requested = Signal(str)  # emits SQL string to main window
+    _MIN_FONT_SIZE = 8
+    _MAX_FONT_SIZE = 36
 
-    def __init__(self, parent=None, syntax_highlighting_enabled: bool = True):
+    def __init__(
+        self,
+        parent=None,
+        syntax_highlighting_enabled: bool = True,
+        editor_font_size: int = 11,
+        results_font_size: int = 12,
+    ):
         super().__init__(parent)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(4, 4, 4, 4)
@@ -95,10 +103,12 @@ class QueryTab(QWidget):
 
         self.editor = SqlEditor()
         self.editor.set_syntax_highlighting_enabled(syntax_highlighting_enabled)
+        self.set_editor_font_size(editor_font_size)
         self.editor.run_requested.connect(self._on_run)
         splitter.addWidget(self.editor)
 
         self.results = ResultsPanel()
+        self.set_results_font_size(results_font_size)
         splitter.addWidget(self.results)
 
         splitter.setStretchFactor(0, 2)
@@ -183,3 +193,19 @@ class QueryTab(QWidget):
     def set_theme(self, theme: str):
         self.editor.set_theme(theme)
         self.results.set_theme(theme)
+
+    def editor_font_size(self) -> int:
+        return self.editor.font_point_size()
+
+    def set_editor_font_size(self, point_size: int):
+        self.editor.set_font_point_size(self._clamp_font_size(point_size))
+
+    def results_font_size(self) -> int:
+        return self.results.font_point_size()
+
+    def set_results_font_size(self, point_size: int):
+        self.results.set_font_point_size(self._clamp_font_size(point_size))
+
+    @classmethod
+    def _clamp_font_size(cls, point_size: int) -> int:
+        return max(cls._MIN_FONT_SIZE, min(cls._MAX_FONT_SIZE, int(point_size)))

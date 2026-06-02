@@ -12,6 +12,7 @@ STATUS_CHECKPOINT_COMPLETE = "Checkpoint complete"
 MENU_FILE = "&File"
 MENU_VIEW = "&View"
 MENU_THEME = "Theme"
+MENU_ZOOM = "Zoom"
 
 ACTION_NEW_QUERY_TAB = "New Query Tab"
 ACTION_OPEN_SQL = "Open SQL..."
@@ -20,6 +21,12 @@ ACTION_SYNTAX_HIGHLIGHTING = "Syntax highlighting"
 ACTION_THEME_LIGHT = "Light"
 ACTION_THEME_DARK = "Dark"
 ACTION_THEME_VIVID = "Vivid"
+ACTION_EDITOR_ZOOM_IN = "Increase Editor Font"
+ACTION_EDITOR_ZOOM_OUT = "Decrease Editor Font"
+ACTION_EDITOR_ZOOM_RESET = "Reset Editor Font"
+ACTION_RESULTS_ZOOM_IN = "Increase Results Font"
+ACTION_RESULTS_ZOOM_OUT = "Decrease Results Font"
+ACTION_RESULTS_ZOOM_RESET = "Reset Results Font"
 
 EDITOR_PLACEHOLDER = (
     "Enter SQL here and press F5 or Ctrl+Enter to run.\n"
@@ -114,6 +121,14 @@ def status_theme_set(theme: str) -> str:
 
 def status_syntax_highlighting(state: str) -> str:
     return f"Syntax highlighting {state}"
+
+
+def status_editor_font_size(size: int) -> str:
+    return f"Editor font size: {size}pt"
+
+
+def status_results_font_size(size: int) -> str:
+    return f"Results font size: {size}pt"
 
 
 def tab_title(index: int) -> str:

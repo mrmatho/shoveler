@@ -77,6 +77,17 @@ def test_sql_editor_line_number_gutter_width_grows_with_more_lines(qapp):
     assert editor.line_number_area_width() >= initial_width
 
 
+def test_sql_editor_line_number_gutter_width_tracks_font_zoom(qapp):
+    editor = SqlEditor()
+    editor.setPlainText("\n".join(f"SELECT {index};" for index in range(1, 201)))
+    initial_width = editor.line_number_area_width()
+
+    editor.set_font_point_size(editor.font_point_size() + 4)
+
+    assert editor.line_number_area_width() > initial_width
+    assert editor.line_number_area.font().pointSize() == editor.font_point_size()
+
+
 def test_sql_editor_tab_completion_prefers_keywords_over_tables_columns_and_functions(qapp):
     editor = SqlEditor()
     editor.set_completion_metadata(["sessions"], ["section"])
@@ -316,6 +327,17 @@ def test_query_tab_show_result_forwards_column_types(qapp):
     }
 
 
+def test_query_tab_clamps_editor_and_results_font_sizes(qapp):
+    tab = QueryTab(editor_font_size=11, results_font_size=12)
+
+    tab.set_editor_font_size(4)
+    tab.set_results_font_size(40)
+
+    assert tab.editor_font_size() == 8
+    assert tab.results_font_size() == 36
+    tab.close()
+
+
 def test_results_panel_copy_to_clipboard_includes_headers_and_rows(qapp):
     panel = ResultsPanel()
     panel.show_results(["id", "name"], [(1, "Ada"), (None, "Bob")], elapsed=0.01)
@@ -452,6 +474,49 @@ def test_main_window_persists_syntax_highlighting_setting(qapp, tmp_path):
     assert reloaded._current_tab().editor.syntax_highlighting_enabled is False
     reloaded._confirm_close_in_memory = lambda: QMessageBox.StandardButton.Discard
     reloaded.close()
+
+
+def test_main_window_persists_editor_and_results_font_sizes(qapp, tmp_path):
+    QSettings.setDefaultFormat(QSettings.Format.IniFormat)
+    QSettings.setPath(
+        QSettings.Format.IniFormat,
+        QSettings.Scope.UserScope,
+        str(tmp_path),
+    )
+
+    window = MainWindow()
+    window._set_editor_font_size(14)
+    window._set_results_font_size(16)
+    window._confirm_close_in_memory = lambda: QMessageBox.StandardButton.Discard
+    window.close()
+
+    reloaded = MainWindow()
+    tab = reloaded._current_tab()
+
+    assert reloaded.editor_font_size == 14
+    assert reloaded.results_font_size == 16
+    assert tab.editor_font_size() == 14
+    assert tab.results_font_size() == 16
+
+    reloaded._confirm_close_in_memory = lambda: QMessageBox.StandardButton.Discard
+    reloaded.close()
+
+
+def test_main_window_font_size_updates_apply_to_existing_tabs(qapp):
+    window = MainWindow()
+    first_tab = window._current_tab()
+    window._add_tab()
+    second_tab = window._current_tab()
+
+    window._set_editor_font_size(13)
+    window._set_results_font_size(15)
+
+    assert first_tab.editor_font_size() == 13
+    assert second_tab.editor_font_size() == 13
+    assert first_tab.results_font_size() == 15
+    assert second_tab.results_font_size() == 15
+
+    window.close()
 
 
 def test_main_window_theme_defaults_to_light(qapp, tmp_path):
@@ -705,6 +770,26 @@ def test_results_panel_shows_column_types_in_headers(qapp):
     assert header.badge_text_for_section(0) == "DECIMAL(10,2)"
     assert header.section_tooltip_text(1) == "Type: VARCHAR"
 
+    panel.close()
+
+
+def test_results_panel_header_section_size_tracks_font_zoom(qapp):
+    panel = ResultsPanel()
+    panel.show_results(
+        ["very_long_column_name"],
+        [(1,)],
+        elapsed=0.01,
+        column_types=["INTEGER"],
+    )
+
+    header = panel.table.horizontalHeader()
+    initial_size = header.sectionSizeFromContents(0)
+
+    panel.set_font_point_size(panel.font_point_size() + 4)
+    zoomed_size = header.sectionSizeFromContents(0)
+
+    assert zoomed_size.width() > initial_size.width()
+    assert zoomed_size.height() >= initial_size.height()
     panel.close()
 
 

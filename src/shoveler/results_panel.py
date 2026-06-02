@@ -63,15 +63,20 @@ class ResultsHeaderView(QHeaderView):
 
     def sectionSizeFromContents(self, logical_index: int) -> QSize:
         size = super().sectionSizeFromContents(logical_index)
+        column_name = self.model().headerData(logical_index, self.orientation(), Qt.ItemDataRole.DisplayRole)
+        header_metrics = QFontMetrics(self.font())
+        header_width = header_metrics.horizontalAdvance(str(column_name)) + 16
         badge_text = self.badge_text_for_section(logical_index)
         if not badge_text:
-            return size
+            return QSize(max(size.width(), header_width), max(size.height(), header_metrics.height() + 10))
 
         badge_font = self._badge_font()
         badge_metrics = QFontMetrics(badge_font)
         badge_width = badge_metrics.horizontalAdvance(badge_text) + 14
         badge_height = badge_metrics.height() + 8
-        return QSize(size.width() + badge_width + 10, max(size.height(), badge_height))
+        width = max(size.width(), header_width) + badge_width + 10
+        height = max(size.height(), header_metrics.height() + 10, badge_height)
+        return QSize(width, height)
 
     def paintSection(self, painter, rect, logical_index):
         if not rect.isValid():
@@ -104,6 +109,7 @@ class ResultsHeaderView(QHeaderView):
 
         painter.save()
         painter.setPen(QPen(self.palette().color(QPalette.ColorRole.WindowText)))
+        painter.setFont(self.font())
         painter.drawText(
             text_rect,
             Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft,
@@ -168,11 +174,14 @@ class ResultsHeaderView(QHeaderView):
 
 
 class ResultsPanel(QWidget):
+    _DEFAULT_FONT_SIZE = 12
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self._theme = "light"
         self._null_colour = get_results_null_colour(self._theme)
         self._status_colours = get_results_status_colours(self._theme)
+        self._font_point_size = self._DEFAULT_FONT_SIZE
 
         # Raw data kept in sync with table display — export reads from here
         self._last_columns: list[str] = []
@@ -191,7 +200,6 @@ class ResultsPanel(QWidget):
         status_layout.setContentsMargins(6, 0, 6, 0)
 
         self.status_label = QLabel(RESULTS_STATUS_EMPTY)
-        self.status_label.setStyleSheet("font-size: 12px;")
         status_layout.addWidget(self.status_label)
         status_layout.addStretch()
 
@@ -210,9 +218,8 @@ class ResultsPanel(QWidget):
         self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self._header.setStretchLastSection(True)
-        self.table.verticalHeader().setDefaultSectionSize(22)
-        self.table.setStyleSheet("font-size: 12px;")
         layout.addWidget(self.table)
+        self.set_font_point_size(self._DEFAULT_FONT_SIZE)
         self.set_theme("light")
 
     def set_theme(self, theme: str):
@@ -220,6 +227,29 @@ class ResultsPanel(QWidget):
         self._null_colour = get_results_null_colour(self._theme)
         self._status_colours = get_results_status_colours(self._theme)
         self._header.set_theme(self._theme)
+
+    def font_point_size(self) -> int:
+        return self._font_point_size
+
+    def set_font_point_size(self, point_size: int):
+        point_size = int(point_size)
+        self._font_point_size = point_size
+
+        table_font = QFont(self.table.font())
+        table_font.setPointSize(point_size)
+        self.table.setFont(table_font)
+        self._header.setFont(table_font)
+
+        status_font = QFont(self.status_label.font())
+        status_font.setPointSize(max(8, point_size - 1))
+        self.status_label.setFont(status_font)
+
+        row_height = max(22, int(QFontMetrics(table_font).height() * 1.6))
+        self.table.verticalHeader().setDefaultSectionSize(row_height)
+        self._header.resizeSections(QHeaderView.ResizeMode.ResizeToContents)
+        self._header.setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
+        self._header.updateGeometry()
+        self._header.viewport().update()
 
     # ── Public interface ────────────────────────────────────────────────────
 
@@ -257,7 +287,7 @@ class ResultsPanel(QWidget):
     def _set_status(self, text: str, kind: str):
         colour = self._status_colours.get(kind, self._status_colours["neutral"])
         self.status_label.setText(text)
-        self.status_label.setStyleSheet(f"color: {colour}; font-size: 12px;")
+        self.status_label.setStyleSheet(f"color: {colour};")
 
     def _populate_table(self, columns: list, rows: list):
         self.table.setColumnCount(len(columns))

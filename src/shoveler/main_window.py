@@ -18,8 +18,14 @@ from .db_status_widget import DatabaseStatusWidget
 from .schema_panel import SchemaPanel
 from .query_tab import QueryTab
 from .config.text import (
+    ACTION_EDITOR_ZOOM_IN,
+    ACTION_EDITOR_ZOOM_OUT,
+    ACTION_EDITOR_ZOOM_RESET,
     ACTION_NEW_QUERY_TAB,
     ACTION_OPEN_SQL,
+    ACTION_RESULTS_ZOOM_IN,
+    ACTION_RESULTS_ZOOM_OUT,
+    ACTION_RESULTS_ZOOM_RESET,
     ACTION_SAVE_DATABASE_AS,
     ACTION_SYNTAX_HIGHLIGHTING,
     ACTION_THEME_DARK,
@@ -29,6 +35,7 @@ from .config.text import (
     MENU_FILE,
     MENU_THEME,
     MENU_VIEW,
+    MENU_ZOOM,
     NEW_TAB_BUTTON_LABEL,
     NEW_TAB_BUTTON_TOOLTIP,
     OPEN_FILE_ERROR_TITLE,
@@ -48,6 +55,8 @@ from .config.text import (
     status_opened,
     status_query_error,
     status_query_ok,
+    status_editor_font_size,
+    status_results_font_size,
     status_saved,
     status_syntax_highlighting,
     status_theme_set,
@@ -61,8 +70,14 @@ from .config.theme import DEFAULT_THEME, load_theme_stylesheet, normalize_theme
 
 class MainWindow(QMainWindow):
     _SYNTAX_HIGHLIGHTING_KEY = "editor/syntax_highlighting_enabled"
+    _EDITOR_FONT_SIZE_KEY = "editor/font_size"
+    _RESULTS_FONT_SIZE_KEY = "results/font_size"
     _THEME_KEY = "ui/theme"
     _WORKING_DIRECTORY_KEY = "files/working_directory"
+    _DEFAULT_EDITOR_FONT_SIZE = 11
+    _DEFAULT_RESULTS_FONT_SIZE = 12
+    _MIN_FONT_SIZE = 8
+    _MAX_FONT_SIZE = 36
 
     def __init__(self):
         super().__init__()
@@ -75,6 +90,18 @@ class MainWindow(QMainWindow):
         )
         self.syntax_highlighting_enabled = self._read_bool_setting(
             self._SYNTAX_HIGHLIGHTING_KEY, True
+        )
+        self.editor_font_size = self._read_int_setting(
+            self._EDITOR_FONT_SIZE_KEY,
+            self._DEFAULT_EDITOR_FONT_SIZE,
+            self._MIN_FONT_SIZE,
+            self._MAX_FONT_SIZE,
+        )
+        self.results_font_size = self._read_int_setting(
+            self._RESULTS_FONT_SIZE_KEY,
+            self._DEFAULT_RESULTS_FONT_SIZE,
+            self._MIN_FONT_SIZE,
+            self._MAX_FONT_SIZE,
         )
         self.theme = self._read_theme_setting()
         self.setWindowTitle(WINDOW_TITLE_BASE)
@@ -162,6 +189,52 @@ class MainWindow(QMainWindow):
         )
         view_menu.addAction(self.syntax_highlighting_action)
 
+        zoom_menu = view_menu.addMenu(MENU_ZOOM)
+
+        self.editor_zoom_in_action = QAction(ACTION_EDITOR_ZOOM_IN, self)
+        self.editor_zoom_in_action.setShortcut("Ctrl+=")
+        self.editor_zoom_in_action.triggered.connect(
+            lambda: self._change_editor_font_size(1)
+        )
+        zoom_menu.addAction(self.editor_zoom_in_action)
+
+        self.editor_zoom_out_action = QAction(ACTION_EDITOR_ZOOM_OUT, self)
+        self.editor_zoom_out_action.setShortcut("Ctrl+-")
+        self.editor_zoom_out_action.triggered.connect(
+            lambda: self._change_editor_font_size(-1)
+        )
+        zoom_menu.addAction(self.editor_zoom_out_action)
+
+        self.editor_zoom_reset_action = QAction(ACTION_EDITOR_ZOOM_RESET, self)
+        self.editor_zoom_reset_action.setShortcut("Ctrl+0")
+        self.editor_zoom_reset_action.triggered.connect(
+            lambda: self._set_editor_font_size(self._DEFAULT_EDITOR_FONT_SIZE)
+        )
+        zoom_menu.addAction(self.editor_zoom_reset_action)
+
+        zoom_menu.addSeparator()
+
+        self.results_zoom_in_action = QAction(ACTION_RESULTS_ZOOM_IN, self)
+        self.results_zoom_in_action.setShortcut("Ctrl+Shift+=")
+        self.results_zoom_in_action.triggered.connect(
+            lambda: self._change_results_font_size(1)
+        )
+        zoom_menu.addAction(self.results_zoom_in_action)
+
+        self.results_zoom_out_action = QAction(ACTION_RESULTS_ZOOM_OUT, self)
+        self.results_zoom_out_action.setShortcut("Ctrl+Shift+-")
+        self.results_zoom_out_action.triggered.connect(
+            lambda: self._change_results_font_size(-1)
+        )
+        zoom_menu.addAction(self.results_zoom_out_action)
+
+        self.results_zoom_reset_action = QAction(ACTION_RESULTS_ZOOM_RESET, self)
+        self.results_zoom_reset_action.setShortcut("Ctrl+Shift+0")
+        self.results_zoom_reset_action.triggered.connect(
+            lambda: self._set_results_font_size(self._DEFAULT_RESULTS_FONT_SIZE)
+        )
+        zoom_menu.addAction(self.results_zoom_reset_action)
+
         theme_menu = view_menu.addMenu(MENU_THEME)
         self.theme_action_group = QActionGroup(self)
         self.theme_action_group.setExclusive(True)
@@ -211,6 +284,14 @@ class MainWindow(QMainWindow):
                 return False
         return bool(value)
 
+    def _read_int_setting(self, key: str, default: int, minimum: int, maximum: int) -> int:
+        value = self.settings.value(key, default)
+        try:
+            parsed = int(value)
+        except (TypeError, ValueError):
+            parsed = default
+        return max(minimum, min(maximum, parsed))
+
     def _read_theme_setting(self) -> str:
         value = self.settings.value(self._THEME_KEY, "light")
         if isinstance(value, str):
@@ -257,11 +338,47 @@ class MainWindow(QMainWindow):
         state = "enabled" if self.syntax_highlighting_enabled else "disabled"
         self.statusBar().showMessage(status_syntax_highlighting(state), 2000)
 
+    def _change_editor_font_size(self, delta: int):
+        self._set_editor_font_size(self.editor_font_size + delta)
+
+    def _set_editor_font_size(self, point_size: int):
+        clamped = max(self._MIN_FONT_SIZE, min(self._MAX_FONT_SIZE, int(point_size)))
+        self.editor_font_size = clamped
+        self.settings.setValue(self._EDITOR_FONT_SIZE_KEY, self.editor_font_size)
+        self.settings.sync()
+
+        for index in range(self.tab_widget.count()):
+            tab = self.tab_widget.widget(index)
+            if isinstance(tab, QueryTab):
+                tab.set_editor_font_size(self.editor_font_size)
+
+        self.statusBar().showMessage(status_editor_font_size(self.editor_font_size), 2000)
+
+    def _change_results_font_size(self, delta: int):
+        self._set_results_font_size(self.results_font_size + delta)
+
+    def _set_results_font_size(self, point_size: int):
+        clamped = max(self._MIN_FONT_SIZE, min(self._MAX_FONT_SIZE, int(point_size)))
+        self.results_font_size = clamped
+        self.settings.setValue(self._RESULTS_FONT_SIZE_KEY, self.results_font_size)
+        self.settings.sync()
+
+        for index in range(self.tab_widget.count()):
+            tab = self.tab_widget.widget(index)
+            if isinstance(tab, QueryTab):
+                tab.set_results_font_size(self.results_font_size)
+
+        self.statusBar().showMessage(status_results_font_size(self.results_font_size), 2000)
+
     # ── Tab management ──────────────────────────────────────────────────────
 
     def _add_tab(self) -> QueryTab:
         n = self.tab_widget.count() + 1
-        tab = QueryTab(syntax_highlighting_enabled=self.syntax_highlighting_enabled)
+        tab = QueryTab(
+            syntax_highlighting_enabled=self.syntax_highlighting_enabled,
+            editor_font_size=self.editor_font_size,
+            results_font_size=self.results_font_size,
+        )
         tab.set_theme(self.theme)
         tab.run_requested.connect(self._run_query)
         idx = self.tab_widget.addTab(tab, tab_title(n))
