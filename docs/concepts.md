@@ -52,11 +52,13 @@ The working directory area helps students find nearby files used in labs.
 - The app remembers the last working directory.
 - If not available on startup, it falls back to Home/Documents when present.
 - Otherwise it falls back to the home directory.
+- Double-click a file to insert its file name into the active SQL editor.
 
 ## Keyboard shortcuts
 
 - `F5`: Run query
 - `Ctrl+Enter`: Run query
+- `Ctrl+T`: New query tab
 
 ## Themes and readability
 
