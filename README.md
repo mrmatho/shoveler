@@ -50,6 +50,9 @@ When adding a new theme, update both the `.qss` assets and the relevant per-them
 - Select part of your SQL to run only that selection
 - Double-click a table name in the schema panel to insert it into the editor
 - **View > Syntax highlighting** — toggle SQL highlighting on or off; enabled by default and remembered between launches
+- **View > Zoom** — increase, decrease, or reset font size for the editor and results panel
+  - Editor: `Ctrl+=`, `Ctrl+-`, `Ctrl+0`
+  - Results: `Ctrl+Shift+=`, `Ctrl+Shift+-`, `Ctrl+Shift+0`
 
 ## Documentation (Phase 1)
 

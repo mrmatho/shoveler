@@ -130,16 +130,17 @@ class SqlHighlighter(QSyntaxHighlighter):
 class SqlEditor(QPlainTextEdit):
     run_requested = Signal()
     _COMPLETION_HINT_DELAY_MS = 180
+    _DEFAULT_FONT_SIZE = 11
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self.line_number_area = LineNumberArea(self)
         self._highlighter = SqlHighlighter(self.document())
-        font = QFont("Courier New", 11)
+        font = QFont("Courier New", self._DEFAULT_FONT_SIZE)
         font.setStyleHint(QFont.StyleHint.Monospace)
         self.setFont(font)
         self.setPlaceholderText(EDITOR_PLACEHOLDER)
-        self.setTabStopDistance(40)
+        self.setTabStopDistance(self.fontMetrics().horizontalAdvance(" ") * 4)
         line_number_palette = get_line_number_palette("light")
         self._line_number_bg = QColor(line_number_palette["background"])
         self._line_number_fg = QColor(line_number_palette["foreground"])
@@ -177,6 +178,23 @@ class SqlEditor(QPlainTextEdit):
     def set_syntax_highlighting_enabled(self, enabled: bool):
         self._highlighter.set_enabled(enabled)
 
+    def font_point_size(self) -> int:
+        point_size = self.font().pointSize()
+        return point_size if point_size > 0 else self._DEFAULT_FONT_SIZE
+
+    def set_font_point_size(self, point_size: int):
+        size = int(point_size)
+        if self.font_point_size() == size:
+            return
+
+        font = QFont(self.font())
+        font.setPointSize(size)
+        self.setFont(font)
+        self.line_number_area.setFont(font)
+        self.setTabStopDistance(self.fontMetrics().horizontalAdvance(" ") * 4)
+        self._update_line_number_area_width(0)
+        self.line_number_area.update()
+
     def set_theme(self, theme: str):
         self._highlighter.set_theme(theme)
         palette = get_line_number_palette(theme)
@@ -190,7 +208,18 @@ class SqlEditor(QPlainTextEdit):
         return 12 + self.fontMetrics().horizontalAdvance("9") * digits
 
     def _update_line_number_area_width(self, _block_count: int):
-        self.setViewportMargins(self.line_number_area_width(), 0, 0, 0)
+        width = self.line_number_area_width()
+        self.setViewportMargins(width, 0, 0, 0)
+
+        contents_rect = self.contentsRect()
+        self.line_number_area.setGeometry(
+            QRect(
+                contents_rect.left(),
+                contents_rect.top(),
+                width,
+                contents_rect.height(),
+            )
+        )
 
     def _update_line_number_area(self, rect: QRect, dy: int):
         if dy:
@@ -216,6 +245,7 @@ class SqlEditor(QPlainTextEdit):
     def line_number_area_paint_event(self, event):
         painter = QPainter(self.line_number_area)
         painter.fillRect(event.rect(), self._line_number_bg)
+        painter.setFont(self.font())
 
         block = self.firstVisibleBlock()
         block_number = block.blockNumber()

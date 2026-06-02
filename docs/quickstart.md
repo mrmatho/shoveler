@@ -75,6 +75,18 @@ Run a query, then use the results export menu to save CSV output.
 
 Use the **Export SQL** button in the query tab toolbar to save your editor content as a `.sql` file.
 
+## 9) Adjust text size
+
+Use **View > Zoom** to increase, decrease, or reset font size for:
+
+- the SQL editor
+- the results table/status area
+
+Keyboard shortcuts:
+
+- Editor: `Ctrl+=`, `Ctrl+-`, `Ctrl+0`
+- Results: `Ctrl+Shift+=`, `Ctrl+Shift+-`, `Ctrl+Shift+0`
+
 ## Next
 
 - Read [Core Concepts](concepts.md)
