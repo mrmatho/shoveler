@@ -81,6 +81,7 @@ When adding a new theme, update both the `.qss` assets and the relevant per-them
 - **View > Zoom** — increase, decrease, or reset font size for the editor and results panel
   - Editor: `Ctrl+=`, `Ctrl+-`, `Ctrl+0`
   - Results: `Ctrl+Shift+=`, `Ctrl+Shift+-`, `Ctrl+Shift+0`
+  - Hold `Ctrl` and scroll the mouse wheel over the hovered panel to zoom that panel
 
 ## Documentation (Phase 1)
 

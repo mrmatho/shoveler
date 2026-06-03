@@ -1,7 +1,7 @@
 import os
 
 import pytest
-from PySide6.QtCore import QSettings, Qt
+from PySide6.QtCore import QEvent, QSettings, Qt
 from PySide6.QtGui import QKeyEvent, QTextCursor, QTextDocument
 from PySide6.QtWidgets import QApplication, QListWidgetItem, QMessageBox
 
@@ -515,6 +515,80 @@ def test_main_window_font_size_updates_apply_to_existing_tabs(qapp):
     assert second_tab.editor_font_size() == 13
     assert first_tab.results_font_size() == 15
     assert second_tab.results_font_size() == 15
+
+    window.close()
+
+
+def test_main_window_ctrl_wheel_zoom_targets_hovered_editor_panel(qapp, monkeypatch):
+    window = MainWindow()
+    tab = window._current_tab()
+    calls: list[int] = []
+
+    monkeypatch.setattr(window, "_change_editor_font_size", lambda delta: calls.append(delta))
+    monkeypatch.setattr(QApplication, "widgetAt", lambda *args, **kwargs: tab.editor.line_number_area)
+
+    class FakeDelta:
+        def y(self):
+            return 120
+
+    class FakePoint:
+        def toPoint(self):
+            return None
+
+    class FakeWheelEvent:
+        def type(self):
+            return QEvent.Type.Wheel
+
+        def modifiers(self):
+            return Qt.KeyboardModifier.ControlModifier
+
+        def angleDelta(self):
+            return FakeDelta()
+
+        def globalPosition(self):
+            return FakePoint()
+
+    handled = window.eventFilter(window, FakeWheelEvent())
+
+    assert handled is True
+    assert calls == [1]
+
+    window.close()
+
+
+def test_main_window_ctrl_wheel_zoom_targets_hovered_results_panel(qapp, monkeypatch):
+    window = MainWindow()
+    tab = window._current_tab()
+    calls: list[int] = []
+
+    monkeypatch.setattr(window, "_change_results_font_size", lambda delta: calls.append(delta))
+    monkeypatch.setattr(QApplication, "widgetAt", lambda *args, **kwargs: tab.results.table.viewport())
+
+    class FakeDelta:
+        def y(self):
+            return -120
+
+    class FakePoint:
+        def toPoint(self):
+            return None
+
+    class FakeWheelEvent:
+        def type(self):
+            return QEvent.Type.Wheel
+
+        def modifiers(self):
+            return Qt.KeyboardModifier.ControlModifier
+
+        def angleDelta(self):
+            return FakeDelta()
+
+        def globalPosition(self):
+            return FakePoint()
+
+    handled = window.eventFilter(window, FakeWheelEvent())
+
+    assert handled is True
+    assert calls == [-1]
 
     window.close()
 

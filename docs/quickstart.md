@@ -87,6 +87,8 @@ Keyboard shortcuts:
 - Editor: `Ctrl+=`, `Ctrl+-`, `Ctrl+0`
 - Results: `Ctrl+Shift+=`, `Ctrl+Shift+-`, `Ctrl+Shift+0`
 
+You can also hold `Ctrl` and scroll the mouse wheel over the editor or results panel to zoom that hovered panel.
+
 ## Next
 
 - Read [Core Concepts](concepts.md)

@@ -1,6 +1,7 @@
 import os
 
 from PySide6.QtWidgets import (
+    QApplication,
     QMainWindow,
     QWidget,
     QVBoxLayout,
@@ -11,7 +12,7 @@ from PySide6.QtWidgets import (
     QFileDialog,
 )
 from PySide6.QtGui import QAction, QActionGroup
-from PySide6.QtCore import QSettings, Qt
+from PySide6.QtCore import QEvent, QSettings, Qt
 
 from .db import Database
 from .db_status_widget import DatabaseStatusWidget
@@ -108,6 +109,7 @@ class MainWindow(QMainWindow):
         self.resize(1200, 720)
 
         self._build_ui()
+        self._install_wheel_zoom_handler()
         self._build_menu()
         self._set_theme(self.theme, persist=False, show_message=False)
         self._connect_signals()
@@ -272,6 +274,11 @@ class MainWindow(QMainWindow):
             self._on_working_directory_changed
         )
 
+    def _install_wheel_zoom_handler(self):
+        app = QApplication.instance()
+        if app is not None:
+            app.installEventFilter(self)
+
     def _read_bool_setting(self, key: str, default: bool) -> bool:
         value = self.settings.value(key, default)
         if isinstance(value, bool):
@@ -323,6 +330,31 @@ class MainWindow(QMainWindow):
 
         if show_message:
             self.statusBar().showMessage(status_theme_set(self.theme), 2000)
+
+    def eventFilter(self, watched, event):
+        if event.type() == QEvent.Type.Wheel and event.modifiers() & Qt.KeyboardModifier.ControlModifier:
+            hovered_widget = QApplication.widgetAt(event.globalPosition().toPoint())
+            if self._handle_hovered_wheel_zoom(hovered_widget, event.angleDelta().y()):
+                return True
+        return super().eventFilter(watched, event)
+
+    def _handle_hovered_wheel_zoom(self, widget, delta: int) -> bool:
+        if widget is None or delta == 0:
+            return False
+
+        tab = self._current_tab()
+        if tab is None:
+            return False
+
+        if tab.editor is widget or tab.editor.isAncestorOf(widget):
+            self._change_editor_font_size(1 if delta > 0 else -1)
+            return True
+
+        if tab.results is widget or tab.results.isAncestorOf(widget):
+            self._change_results_font_size(1 if delta > 0 else -1)
+            return True
+
+        return False
 
     def _set_syntax_highlighting_enabled(self, enabled: bool):
         self.syntax_highlighting_enabled = bool(enabled)
