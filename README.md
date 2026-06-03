@@ -4,7 +4,35 @@ A minimal desktop SQL workbench for DuckDB, built with Python and PySide6.
 
 Named after the [Australasian shoveler](https://en.wikipedia.org/wiki/Australasian_shoveler) - a species of "dabbling duck" - in honor of both the database's name and the app's purpose.
 
-## Setup (uv)
+## Recommended for students and teachers: download a binary
+
+Most classroom users should use the prebuilt desktop app from GitHub Releases instead of cloning or installing with pip.
+
+1. Open the repo's **Releases** page.
+2. Download the latest desktop package for your platform.
+3. Extract it and run the app.
+
+This is the fastest path for labs and avoids Python/tooling setup on student machines.
+
+## Mac users - install from pip
+
+The PyInstaller-built executable is not currently signed, which leads to the downloaded app being unusable without a workaround on macOS. For Mac users, the recommended option is to install from pip until code signing and notarization are set up.
+
+### Installation with pip
+
+```shell
+pip install shoveler
+```
+
+### Running the app
+
+```shell
+python -m shoveler
+```
+
+The remaining alternative: build from source to create a local executable with PyInstaller. This is more complex and not ideal for most users, but instructions are included in the next section.
+
+## Setup from source (developers)
 
 ```shell
 git clone https://github.com/mrmatho/shoveler
@@ -74,7 +102,7 @@ For a simple setup:
 
 GitHub Pages will publish the docs automatically from the `docs/` directory.
 
-## Building a standalone Windows executable
+## Building a standalone executable
 
 The project includes `shoveler.spec` with the correct PyInstaller
 configuration. Use this rather than running `pyinstaller` with flags directly —
@@ -92,11 +120,15 @@ This repo includes a release workflow at `.github/workflows/desktop-release.yml`
 
 - Trigger: push a tag like `v1.2.0` (or run manually with workflow_dispatch).
 - Build matrix: Windows, macOS, Linux.
+- Output artifacts are intended primarily for Windows and Linux classroom distribution.
 - Output artifacts:
   - `Shoveler-windows-x64.zip`
-  - `Shoveler-macos-universal.zip`
   - `Shoveler-linux-x64.tar.gz`
 - Release publish: on tag pushes, artifacts are attached automatically to the GitHub Release.
+
+### macOS note
+
+Unsigned PyInstaller executables are not a good end-user experience on macOS. Until code signing and notarization are set up, treat macOS PyInstaller output as developer-only and avoid sharing it as a classroom distribution artifact.
 
 ### Release steps
 
@@ -109,7 +141,7 @@ git push origin v1.2.0
 ```
 
 1. Wait for the `Desktop Release` workflow to finish.
-2. Open the matching GitHub Release and verify all three artifacts are attached.
+2. Open the matching GitHub Release and verify the Windows and Linux artifacts are attached.
 
 **Why --onedir and not --onefile?**
 `--onefile` extracts everything to a temp directory on every launch, which makes
