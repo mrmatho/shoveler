@@ -87,6 +87,13 @@ Keyboard shortcuts:
 - Editor: `Ctrl+=`, `Ctrl+-`, `Ctrl+0`
 - Results: `Ctrl+Shift+=`, `Ctrl+Shift+-`, `Ctrl+Shift+0`
 
+## 10) Reuse past queries
+
+Open **View > Query History Sidebar**, press **Ctrl+H**, or use the top-row **Query History** button to show the right-side query history panel.
+
+- It stores the most recent 50 successful queries.
+- Double-click a query to insert it into the current SQL editor.
+
 ## Next
 
 - Read [Core Concepts](concepts.md)

@@ -700,6 +700,14 @@ def test_main_window_new_tab_action_uses_ctrl_t(qapp):
     window.close()
 
 
+def test_main_window_query_history_action_uses_ctrl_h(qapp):
+    window = MainWindow()
+
+    assert window.query_history_sidebar_action.shortcut().toString() == "Ctrl+H"
+
+    window.close()
+
+
 def test_main_window_insert_file_name_inserts_into_editor(qapp):
     window = MainWindow()
     tab = window._current_tab()
@@ -874,6 +882,102 @@ def test_main_window_run_query_error_sets_error_status(qapp, monkeypatch):
     assert shown_results == [fake_result]
     assert status_messages[-1][1] == 5000
     assert "Error" in status_messages[-1][0]
+
+    window.close()
+
+
+def test_main_window_query_history_hidden_by_default(qapp):
+    window = MainWindow()
+
+    assert window.query_history_panel.isVisible() is False
+    assert window.query_history_sidebar_action.isChecked() is False
+    assert window.db_status.query_history_btn.isChecked() is False
+
+    window.close()
+
+
+def test_main_window_query_history_toggle_button_tracks_sidebar_visibility(qapp):
+    window = MainWindow()
+
+    window.db_status.query_history_btn.setChecked(True)
+
+    assert window.query_history_sidebar_action.isChecked() is True
+    assert window.query_history_panel.isHidden() is False
+
+    window.query_history_sidebar_action.setChecked(False)
+
+    assert window.db_status.query_history_btn.isChecked() is False
+    assert window.query_history_panel.isHidden() is True
+
+    window.close()
+
+
+def test_main_window_query_history_records_success_only(qapp, monkeypatch):
+    window = MainWindow()
+    window.settings.remove(window._QUERY_HISTORY_KEY)
+    window.query_history = []
+    window.query_history_panel.set_queries([])
+
+    monkeypatch.setattr(
+        window.db,
+        "execute",
+        lambda sql: {
+            "columns": ["value"],
+            "column_types": ["INTEGER"],
+            "rows": [(1,)],
+            "elapsed": 0.01,
+            "error": None,
+        },
+    )
+    window._run_query("SELECT 1")
+
+    monkeypatch.setattr(
+        window.db,
+        "execute",
+        lambda sql: {
+            "columns": [],
+            "column_types": [],
+            "rows": [],
+            "elapsed": 0.01,
+            "error": "syntax error",
+        },
+    )
+    window._run_query("BROKEN SQL")
+
+    assert window.query_history == ["SELECT 1"]
+
+    window.settings.remove(window._QUERY_HISTORY_KEY)
+    window.settings.sync()
+    window.close()
+
+
+def test_main_window_query_history_keeps_most_recent_50(qapp):
+    window = MainWindow()
+    window.settings.remove(window._QUERY_HISTORY_KEY)
+    window.query_history = []
+    window.query_history_panel.set_queries([])
+
+    for value in range(60):
+        window._record_query(f"SELECT {value}")
+
+    assert len(window.query_history) == 50
+    assert window.query_history[0] == "SELECT 59"
+    assert window.query_history[-1] == "SELECT 10"
+
+    window.settings.remove(window._QUERY_HISTORY_KEY)
+    window.settings.sync()
+    window.close()
+
+
+def test_main_window_insert_query_history_sql_inserts_into_active_editor(qapp):
+    window = MainWindow()
+    tab = window._current_tab()
+    tab.editor.setPlainText("SELECT")
+    tab.editor.moveCursor(QTextCursor.MoveOperation.End)
+
+    window._insert_query_history_sql("\nFROM students;")
+
+    assert tab.editor.toPlainText() == "SELECT\nFROM students;"
 
     window.close()
 

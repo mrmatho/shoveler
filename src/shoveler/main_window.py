@@ -17,7 +17,9 @@ from .db import Database
 from .db_status_widget import DatabaseStatusWidget
 from .schema_panel import SchemaPanel
 from .query_tab import QueryTab
+from .query_history_panel import QueryHistoryPanel
 from .config.text import (
+    ACTION_QUERY_HISTORY_SIDEBAR,
     ACTION_EDITOR_ZOOM_IN,
     ACTION_EDITOR_ZOOM_OUT,
     ACTION_EDITOR_ZOOM_RESET,
@@ -74,6 +76,8 @@ class MainWindow(QMainWindow):
     _RESULTS_FONT_SIZE_KEY = "results/font_size"
     _THEME_KEY = "ui/theme"
     _WORKING_DIRECTORY_KEY = "files/working_directory"
+    _QUERY_HISTORY_KEY = "queries/history"
+    _QUERY_HISTORY_MAX = 50
     _DEFAULT_EDITOR_FONT_SIZE = 11
     _DEFAULT_RESULTS_FONT_SIZE = 12
     _MIN_FONT_SIZE = 8
@@ -104,6 +108,7 @@ class MainWindow(QMainWindow):
             self._MAX_FONT_SIZE,
         )
         self.theme = self._read_theme_setting()
+        self.query_history = self._read_query_history_setting()
         self.setWindowTitle(WINDOW_TITLE_BASE)
         self.resize(1200, 720)
 
@@ -129,6 +134,7 @@ class MainWindow(QMainWindow):
 
         # Horizontal splitter: schema panel | query area
         splitter = QSplitter(Qt.Orientation.Horizontal)
+        self.main_splitter = splitter
 
         self.schema_panel = SchemaPanel()
         self.schema_panel.setMinimumWidth(160)
@@ -148,9 +154,18 @@ class MainWindow(QMainWindow):
         self.tab_widget.setCornerWidget(add_tab_btn, Qt.Corner.TopRightCorner)
 
         splitter.addWidget(self.tab_widget)
+
+        self.query_history_panel = QueryHistoryPanel()
+        self.query_history_panel.setMinimumWidth(200)
+        self.query_history_panel.setMaximumWidth(440)
+        self.query_history_panel.set_queries(self.query_history)
+        self.query_history_panel.setVisible(False)
+        splitter.addWidget(self.query_history_panel)
+
         splitter.setStretchFactor(0, 0)
         splitter.setStretchFactor(1, 1)
-        splitter.setSizes([260, 940])
+        splitter.setStretchFactor(2, 0)
+        splitter.setSizes([260, 940, 0])
 
         root.addWidget(splitter)
 
@@ -188,6 +203,15 @@ class MainWindow(QMainWindow):
             self._set_syntax_highlighting_enabled
         )
         view_menu.addAction(self.syntax_highlighting_action)
+
+        self.query_history_sidebar_action = QAction(ACTION_QUERY_HISTORY_SIDEBAR, self)
+        self.query_history_sidebar_action.setCheckable(True)
+        self.query_history_sidebar_action.setChecked(False)
+        self.query_history_sidebar_action.setShortcut("Ctrl+H")
+        self.query_history_sidebar_action.toggled.connect(
+            self._set_query_history_sidebar_visible
+        )
+        view_menu.addAction(self.query_history_sidebar_action)
 
         zoom_menu = view_menu.addMenu(MENU_ZOOM)
 
@@ -268,6 +292,12 @@ class MainWindow(QMainWindow):
         self.db_status.checkpoint_requested.connect(self._checkpoint)
         self.schema_panel.table_double_clicked.connect(self._insert_table_name)
         self.schema_panel.file_double_clicked.connect(self._insert_file_name)
+        self.query_history_panel.query_double_clicked.connect(
+            self._insert_query_history_sql
+        )
+        self.db_status.query_history_btn.toggled.connect(
+            self.query_history_sidebar_action.setChecked
+        )
         self.schema_panel.working_directory_changed.connect(
             self._on_working_directory_changed
         )
@@ -298,6 +328,25 @@ class MainWindow(QMainWindow):
             return normalize_theme(value)
         return DEFAULT_THEME
 
+    def _read_query_history_setting(self) -> list[str]:
+        value = self.settings.value(self._QUERY_HISTORY_KEY, [])
+        if isinstance(value, str):
+            items = [value]
+        elif isinstance(value, list):
+            items = value
+        else:
+            items = []
+
+        cleaned: list[str] = []
+        for item in items:
+            if not isinstance(item, str):
+                continue
+            query = item.replace("\r\n", "\n").replace("\u2029", "\n").strip()
+            if query:
+                cleaned.append(query)
+
+        return cleaned[: self._QUERY_HISTORY_MAX]
+
     def _set_theme(self, theme: str, persist: bool = True, show_message: bool = True):
         normalized = normalize_theme(theme)
         self.setStyleSheet(load_theme_stylesheet(normalized))
@@ -312,6 +361,7 @@ class MainWindow(QMainWindow):
         self.theme = normalized
         self.db_status.set_theme(self.theme)
         self.schema_panel.set_theme(self.theme)
+        self.query_history_panel.set_theme(self.theme)
         for index in range(self.tab_widget.count()):
             tab = self.tab_widget.widget(index)
             if isinstance(tab, QueryTab):
@@ -370,6 +420,19 @@ class MainWindow(QMainWindow):
 
         self.statusBar().showMessage(status_results_font_size(self.results_font_size), 2000)
 
+    def _set_query_history_sidebar_visible(self, visible: bool):
+        self.db_status.query_history_btn.blockSignals(True)
+        self.db_status.query_history_btn.setChecked(bool(visible))
+        self.db_status.query_history_btn.blockSignals(False)
+        self.query_history_panel.setVisible(bool(visible))
+        if visible:
+            sizes = self.main_splitter.sizes()
+            if len(sizes) >= 3:
+                schema_width = max(220, sizes[0])
+                center_width = max(520, sizes[1])
+                history_width = 280
+                self.main_splitter.setSizes([schema_width, center_width, history_width])
+
     # ── Tab management ──────────────────────────────────────────────────────
 
     def _add_tab(self) -> QueryTab:
@@ -411,8 +474,20 @@ class MainWindow(QMainWindow):
         if result["error"]:
             self.statusBar().showMessage(status_query_error(result["error"]), 5000)
         else:
+            self._record_query(sql)
             rows = len(result["rows"])
             self.statusBar().showMessage(status_query_ok(rows, result["elapsed"]), 4000)
+
+    def _record_query(self, sql: str):
+        query = sql.replace("\u2029", "\n").strip()
+        if not query:
+            return
+
+        self.query_history.insert(0, query)
+        self.query_history = self.query_history[: self._QUERY_HISTORY_MAX]
+        self.query_history_panel.set_queries(self.query_history)
+        self.settings.setValue(self._QUERY_HISTORY_KEY, self.query_history)
+        self.settings.sync()
 
     # ── Database actions ────────────────────────────────────────────────────
 
@@ -519,6 +594,12 @@ class MainWindow(QMainWindow):
         tab = self._current_tab()
         if tab:
             tab.editor.insertPlainText(file_name)
+            tab.editor.setFocus()
+
+    def _insert_query_history_sql(self, sql: str):
+        tab = self._current_tab()
+        if tab:
+            tab.editor.insertPlainText(sql)
             tab.editor.setFocus()
 
     def _on_working_directory_changed(self, path: str):

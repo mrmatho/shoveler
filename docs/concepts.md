@@ -31,6 +31,15 @@ Shoveler follows this rule:
 
 This helps students test one statement at a time without deleting other work.
 
+## Query history sidebar
+
+Shoveler keeps a persistent history of the most recent 50 successful queries.
+
+- The sidebar is on the right side of the window and starts hidden.
+- Toggle it from View > Query History Sidebar, press Ctrl+H, or use the top status-bar Query History button.
+- Double-click a saved query to insert its SQL text into the active editor.
+- Failed queries are not added to history.
+
 ## Schema panel
 
 The schema panel shows tables and columns from the active database.

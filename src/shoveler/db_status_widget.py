@@ -23,6 +23,7 @@ from .config.text import (
     DB_STATUS_OPEN_DIALOG_FILTER,
     DB_STATUS_OPEN_DIALOG_TITLE,
     DB_STATUS_SAVE_INLINE,
+    QUERY_HISTORY_TOGGLE_BUTTON,
 )
 from .config.ui import DB_STATUS_COLOURS, MAX_STATUS_PATH_LENGTH, get_db_status_secondary_text
 
@@ -88,6 +89,12 @@ class DatabaseStatusWidget(QFrame):
         self.checkpoint_btn.setToolTip(DB_STATUS_CHECKPOINT_TOOLTIP)
         self.checkpoint_btn.clicked.connect(self.checkpoint_requested.emit)
         layout.addWidget(self.checkpoint_btn)
+
+        self.query_history_btn = QPushButton(QUERY_HISTORY_TOGGLE_BUTTON)
+        self.query_history_btn.setFixedWidth(105)
+        self.query_history_btn.setCheckable(True)
+        self.query_history_btn.setChecked(False)
+        layout.addWidget(self.query_history_btn)
 
         self._set_state_disconnected()
 
