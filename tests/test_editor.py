@@ -12,7 +12,7 @@ from shoveler.db_status_widget import DatabaseStatusWidget
 from shoveler.main_window import MainWindow
 from shoveler.query_tab import QueryTab
 from shoveler.results_panel import ResultsPanel
-from shoveler.schema_panel import SchemaPanel
+from shoveler.schema_panel import SchemaPanel, IMPORTABLE_EXTENSIONS
 
 
 @pytest.fixture(scope="session")
@@ -735,7 +735,49 @@ def test_schema_panel_ignores_no_files_placeholder_double_click(qapp):
     panel.close()
 
 
-def test_main_window_open_sql_routes_to_current_tab(qapp):
+def test_importable_extensions_contains_expected_formats():
+    for ext in (".csv", ".tsv", ".parquet", ".duckdb", ".db", ".sql", ".json"):
+        assert ext in IMPORTABLE_EXTENSIONS
+
+
+def test_schema_panel_refresh_shows_only_importable_files(qapp, tmp_path, monkeypatch):
+    importable = ["data.csv", "archive.parquet", "notes.sql", "store.duckdb"]
+    non_importable = ["readme.txt", "image.png", "script.py"]
+
+    for name in importable + non_importable:
+        (tmp_path / name).write_text("x")
+
+    monkeypatch.chdir(tmp_path)
+
+    panel = SchemaPanel()
+    panel.refresh_working_directory()
+
+    items = [
+        panel.files_list.item(i).text()
+        for i in range(panel.files_list.count())
+    ]
+
+    for name in importable:
+        assert name in items, f"Expected {name!r} to appear in file list"
+    for name in non_importable:
+        assert name not in items, f"Expected {name!r} to be filtered out"
+
+    panel.close()
+
+
+def test_schema_panel_refresh_shows_no_files_when_none_importable(qapp, tmp_path, monkeypatch):
+    (tmp_path / "readme.txt").write_text("hello")
+    (tmp_path / "image.png").write_bytes(b"\x89PNG")
+
+    monkeypatch.chdir(tmp_path)
+
+    panel = SchemaPanel()
+    panel.refresh_working_directory()
+
+    assert panel.files_list.count() == 1
+    assert panel.files_list.item(0).text() == SCHEMA_NO_FILES
+
+    panel.close()
     window = MainWindow()
     tab = window._current_tab()
     called = {"value": False}

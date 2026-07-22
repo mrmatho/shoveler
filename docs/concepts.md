@@ -52,6 +52,7 @@ The working directory area helps students find nearby files used in labs.
 - The app remembers the last working directory.
 - If not available on startup, it falls back to Home/Documents when present.
 - Otherwise it falls back to the home directory.
+- Only files that DuckDB can import are shown: `.csv`, `.tsv`, `.parquet`, `.duckdb`, `.db`, `.sql`, `.json`, `.jsonl`, `.ndjson`, `.arrow`, `.feather`, `.xlsx`, `.xls`, `.orc`.
 - Double-click a file to insert its file name into the active SQL editor.
 
 ## Keyboard shortcuts
