@@ -3,6 +3,7 @@ Tests for the Database layer.
 No display required — db.py has no PySide6 imports.
 """
 
+import datetime
 import logging
 
 import pytest
@@ -73,7 +74,28 @@ def test_invalid_sql_returns_error(db):
     assert result["rows"] == []
 
 
-def test_ddl_returns_count_column(db):
+def test_timestamp_column_types(db):
+    db.execute("CREATE TABLE events (id INTEGER, created_at TIMESTAMP, updated_at TIMESTAMPTZ)")
+    db.execute("INSERT INTO events VALUES (1, '2024-01-01 12:00:00', '2024-01-01 12:00:00+00')")
+
+    result = db.execute("SELECT * FROM events")
+
+    assert result["error"] is None
+    assert result["column_types"] == ["INTEGER", "TIMESTAMP", "TIMESTAMP WITH TIME ZONE"]
+
+
+def test_interval_column_type_from_timestamp_arithmetic(db):
+    db.execute("CREATE TABLE events (id INTEGER, start_ts TIMESTAMP, end_ts TIMESTAMP)")
+    db.execute("INSERT INTO events VALUES (1, '2024-01-01 12:00:00', '2024-01-02 13:30:00')")
+
+    result = db.execute("SELECT end_ts - start_ts AS duration FROM events")
+
+    assert result["error"] is None
+    assert result["column_types"] == ["INTERVAL"]
+    assert isinstance(result["rows"][0][0], datetime.timedelta)
+
+
+
     # DuckDB returns a single 'Count' column for DDL statements
     result = db.execute("CREATE TABLE t (x INTEGER)")
     assert result["error"] is None
