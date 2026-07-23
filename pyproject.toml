@@ -13,6 +13,7 @@ keywords = ["duckdb", "sql", "workbench", "education"]
 dependencies = [
     "PySide6>=6.6",
     "duckdb>=0.10",
+    "pytz>=2024.1",
 ]
 
 # gui-scripts suppresses the Windows console window; use this instead of scripts
