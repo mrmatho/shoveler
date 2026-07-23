@@ -33,6 +33,26 @@ from .config.text import (
 )
 from .config.ui import get_schema_secondary_text
 
+# File extensions that DuckDB can read or import directly.
+IMPORTABLE_EXTENSIONS: frozenset[str] = frozenset(
+    {
+        ".csv",
+        ".tsv",
+        ".parquet",
+        ".duckdb",
+        ".db",
+        ".sql",
+        ".json",
+        ".jsonl",
+        ".ndjson",
+        ".arrow",
+        ".feather",
+        ".xlsx",
+        ".xls",
+        ".orc",
+    }
+)
+
 
 class SchemaPanel(QWidget):
     table_double_clicked = Signal(str)
@@ -147,7 +167,10 @@ class SchemaPanel(QWidget):
 
         self.files_list.setEnabled(True)
         file_names = [
-            name for name in entries if os.path.isfile(os.path.join(cwd, name))
+            name
+            for name in entries
+            if os.path.isfile(os.path.join(cwd, name))
+            and os.path.splitext(name)[1].lower() in IMPORTABLE_EXTENSIONS
         ]
         if not file_names:
             self.files_list.addItem(SCHEMA_NO_FILES)
