@@ -1,5 +1,5 @@
 import csv
-from datetime import date, datetime, time as time_type
+from datetime import date, datetime, time as time_type, timedelta
 from decimal import Decimal
 
 from PySide6.QtWidgets import (
@@ -321,7 +321,7 @@ class ResultsPanel(QWidget):
                 column_types.append(observed[0])
             elif unique <= {"INTEGER", "REAL", "NUMERIC"}:
                 column_types.append("NUMERIC")
-            elif unique <= {"DATE", "TIME", "TIMESTAMP"}:
+            elif unique <= {"DATE", "TIME", "TIMESTAMP", "INTERVAL"}:
                 column_types.append("TEMPORAL")
             else:
                 column_types.append("MIXED")
@@ -336,6 +336,8 @@ class ResultsPanel(QWidget):
             return "REAL"
         if isinstance(value, Decimal):
             return "NUMERIC"
+        if isinstance(value, timedelta):
+            return "INTERVAL"
         if isinstance(value, datetime):
             return "TIMESTAMP"
         if isinstance(value, date):
@@ -365,6 +367,7 @@ class ResultsPanel(QWidget):
             "BLOB": "BLOB",
             "DATE": "DATE",
             "INTEGER": "INT",
+            "INTERVAL": "INTV",
             "MIXED": "MIX",
             "NULL": "NULL",
             "NUMERIC": "NUM",
