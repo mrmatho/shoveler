@@ -483,6 +483,12 @@ class MainWindow(QMainWindow):
         if not query:
             return
 
+        if self.query_history and self.query_history[0] == query:
+            return
+
+        if query in self.query_history:
+            self.query_history.remove(query)
+
         self.query_history.insert(0, query)
         self.query_history = self.query_history[: self._QUERY_HISTORY_MAX]
         self.query_history_panel.set_queries(self.query_history)

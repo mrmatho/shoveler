@@ -3,13 +3,14 @@ import os
 import pytest
 from PySide6.QtCore import QSettings, Qt
 from PySide6.QtGui import QKeyEvent, QTextCursor, QTextDocument
-from PySide6.QtWidgets import QApplication, QListWidgetItem, QMessageBox
+from PySide6.QtWidgets import QApplication, QLabel, QListWidgetItem, QMessageBox
 
 from shoveler.config.theme import AVAILABLE_THEMES, DEFAULT_THEME, load_theme_stylesheet, normalize_theme
 from shoveler.config.text import SCHEMA_NO_FILES, results_export_scope_message
 from shoveler.editor import SqlEditor, SqlHighlighter
 from shoveler.db_status_widget import DatabaseStatusWidget
 from shoveler.main_window import MainWindow
+from shoveler.query_history_panel import QueryHistoryPanel
 from shoveler.query_tab import QueryTab
 from shoveler.results_panel import ResultsPanel
 from shoveler.schema_panel import SchemaPanel
@@ -743,6 +744,28 @@ def test_schema_panel_ignores_no_files_placeholder_double_click(qapp):
     panel.close()
 
 
+def test_query_history_panel_renders_wrapped_card_items(qapp):
+    panel = QueryHistoryPanel()
+    long_query = (
+        "SELECT students.name, students.grade FROM students "
+        "WHERE students.grade >= 85 ORDER BY students.grade DESC, students.name ASC;"
+    )
+
+    panel.set_queries([long_query])
+
+    assert panel.list_widget.count() == 1
+    item = panel.list_widget.item(0)
+    card = panel.list_widget.itemWidget(item)
+    assert card is not None
+
+    text_label = card.findChild(QLabel, "queryHistoryText")
+    assert text_label is not None
+    assert text_label.wordWrap() is True
+    assert text_label.text() == long_query
+
+    panel.close()
+
+
 def test_main_window_open_sql_routes_to_current_tab(qapp):
     window = MainWindow()
     tab = window._current_tab()
@@ -963,6 +986,40 @@ def test_main_window_query_history_keeps_most_recent_50(qapp):
     assert len(window.query_history) == 50
     assert window.query_history[0] == "SELECT 59"
     assert window.query_history[-1] == "SELECT 10"
+
+    window.settings.remove(window._QUERY_HISTORY_KEY)
+    window.settings.sync()
+    window.close()
+
+
+def test_main_window_query_history_skips_consecutive_duplicate(qapp):
+    window = MainWindow()
+    window.settings.remove(window._QUERY_HISTORY_KEY)
+    window.query_history = []
+    window.query_history_panel.set_queries([])
+
+    window._record_query("SELECT 1")
+    window._record_query("SELECT 1")
+
+    assert window.query_history == ["SELECT 1"]
+
+    window.settings.remove(window._QUERY_HISTORY_KEY)
+    window.settings.sync()
+    window.close()
+
+
+def test_main_window_query_history_moves_existing_query_to_top(qapp):
+    window = MainWindow()
+    window.settings.remove(window._QUERY_HISTORY_KEY)
+    window.query_history = []
+    window.query_history_panel.set_queries([])
+
+    window._record_query("SELECT 1")
+    window._record_query("SELECT 2")
+    window._record_query("SELECT 3")
+    window._record_query("SELECT 1")
+
+    assert window.query_history == ["SELECT 1", "SELECT 3", "SELECT 2"]
 
     window.settings.remove(window._QUERY_HISTORY_KEY)
     window.settings.sync()
