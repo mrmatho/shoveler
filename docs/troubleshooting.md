@@ -25,6 +25,10 @@ python -c "import importlib.metadata as m; print(m.version('shoveler'))"
 2. Confirm you are querying the expected table and database mode.
 3. If using in-memory mode, verify you did not restart without saving.
 
+![A failed query with its error displayed in the results panel](images/query-error.png)
+
+*When a query fails, Shoveler shows the error in the results panel.*
+
 ## Checkpoint button is disabled
 
 This is expected in in-memory mode.

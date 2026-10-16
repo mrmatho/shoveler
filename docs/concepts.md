@@ -10,11 +10,19 @@ This page explains key behaviors in Shoveler so students understand what they ar
 - Data persists on disk
 - Checkpoint is available
 
+![File-backed database connected in Shoveler](images/file-backed.png)
+
+*A file-backed connection is marked with a green indicator, and Checkpoint is available.*
+
 ### In-memory
 
 - Lives only while app is running
 - Fast for experiments and classroom demos
 - Data is lost on close unless saved
+
+![In-memory database with query results](images/workbench-light.png)
+
+*An in-memory connection is marked with an amber indicator and offers Save Database As.*
 
 ## Checkpoint
 
@@ -75,3 +83,7 @@ Shoveler includes light and dark themes.
 
 - Change via View > Theme
 - Theme is saved and restored on next launch
+
+![Shoveler using its dark theme](images/workbench-dark.png)
+
+*The editor, schema, and results areas all follow the selected theme.*
