@@ -4,6 +4,16 @@ A minimal desktop SQL workbench for DuckDB, built with Python and PySide6.
 
 Named after the [Australasian shoveler](https://en.wikipedia.org/wiki/Australasian_shoveler) - a species of "dabbling duck" - in honor of both the database's name and the app's purpose.
 
+## Screenshots
+
+| Light theme | Dark theme |
+| --- | --- |
+| ![Shoveler showing a query and its results in the light theme](docs/images/workbench-light.png) | ![Shoveler showing a query and its results in the dark theme](docs/images/workbench-dark.png) |
+
+| File-backed database | Query error |
+| --- | --- |
+| ![Shoveler connected to a file-backed database](docs/images/file-backed.png) | ![Shoveler displaying a query error](docs/images/query-error.png) |
+
 ## Recommended for students and teachers: download a binary
 
 Most classroom users should use the prebuilt desktop app from GitHub Releases instead of cloning or installing with pip.
