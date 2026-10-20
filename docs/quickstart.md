@@ -52,6 +52,10 @@ Run it with:
 - `Ctrl+Enter`, or
 - the Run Query button
 
+![A completed query in Shoveler with the students table and sorted results](images/workbench-light.png)
+
+*The schema panel shows the new table, and the results panel shows students sorted by grade.*
+
 ## 4) Try selection-only execution
 
 1. Highlight only the final `select` statement.
