@@ -86,6 +86,9 @@ When adding a new theme, update both the `.qss` assets and the relevant per-them
 - **Checkpoint** — flush the write-ahead log to disk (file databases only)
 - **F5 or Ctrl+Enter** — run query
 - Select part of your SQL to run only that selection
+- **File > Query History** — load a recent query into the current editor
+- Modified query tabs are marked with `*`; closing or replacing one offers Save, Discard, or Cancel
+- Filter schema tables and columns with the search field above the schema tree
 - Double-click a table name in the schema panel to insert it into the editor
 - **View > Syntax highlighting** — toggle SQL highlighting on or off; enabled by default and remembered between launches
 - **View > Zoom** — increase, decrease, or reset font size for the editor and results panel

@@ -27,9 +27,19 @@ def close_top_level_widgets(qapp):
     yield
 
     for widget in qapp.topLevelWidgets():
+        if isinstance(widget, MainWindow):
+            widget._confirm_unsaved_query = lambda _tab: True
+            widget._should_confirm_close_in_memory = lambda: False
         widget.close()
         widget.deleteLater()
     qapp.processEvents()
+
+
+def edit_query(tab: QueryTab, sql: str):
+    tab.editor.clear()
+    cursor = tab.editor.textCursor()
+    cursor.insertText(sql)
+    tab.editor.setTextCursor(cursor)
 
 
 def test_sql_highlighter_applies_and_clears_formats():
@@ -297,6 +307,149 @@ def test_query_tab_load_sql_from_path_failure_returns_false(qapp, monkeypatch):
     assert loaded is False
 
 
+def test_query_tab_tracks_unsaved_sql_and_clears_state_after_save(qapp, tmp_path):
+    tab = QueryTab()
+    edit_query(tab, "SELECT 1;")
+    output_path = tmp_path / "saved.sql"
+
+    assert tab.is_modified is True
+    assert tab.save_sql_to_path(str(output_path)) is True
+    assert output_path.read_text(encoding="utf-8") == "SELECT 1;"
+    assert tab.is_modified is False
+
+
+@pytest.mark.parametrize(
+    ("choice", "save_result", "expected"),
+    [
+        (QMessageBox.StandardButton.Save, True, True),
+        (QMessageBox.StandardButton.Save, False, False),
+        (QMessageBox.StandardButton.Discard, True, True),
+        (QMessageBox.StandardButton.Cancel, True, False),
+    ],
+)
+def test_main_window_unsaved_query_prompt(qapp, monkeypatch, choice, save_result, expected):
+    window = MainWindow()
+    tab = window._current_tab()
+    edit_query(tab, "SELECT 1;")
+    save_calls = []
+    tab.save_sql_dialog = lambda: save_calls.append(True) or save_result
+    monkeypatch.setattr(QMessageBox, "exec", lambda _box: choice)
+
+    assert window._confirm_unsaved_query(tab) is expected
+    assert bool(save_calls) is (choice == QMessageBox.StandardButton.Save)
+    window._confirm_unsaved_query = lambda _tab: True
+    window._should_confirm_close_in_memory = lambda: False
+    window.close()
+
+
+def test_main_window_cancelled_last_tab_close_preserves_sql(qapp):
+    window = MainWindow()
+    tab = window._current_tab()
+    edit_query(tab, "SELECT 1;")
+    window._confirm_unsaved_query = lambda _tab: False
+
+    window._close_tab(0)
+
+    assert tab.editor.toPlainText() == "SELECT 1;"
+    assert tab.is_modified is True
+    window._confirm_unsaved_query = lambda _tab: True
+    window._should_confirm_close_in_memory = lambda: False
+    window.close()
+
+
+def test_main_window_discard_last_tab_close_clears_sql(qapp):
+    window = MainWindow()
+    tab = window._current_tab()
+    edit_query(tab, "SELECT 1;")
+    window._confirm_unsaved_query = lambda _tab: True
+
+    window._close_tab(0)
+
+    assert tab.editor.toPlainText() == ""
+    assert tab.is_modified is False
+    window._should_confirm_close_in_memory = lambda: False
+    window.close()
+
+
+def test_main_window_cancelled_close_event_keeps_window_open(qapp):
+    window = MainWindow()
+    edit_query(window._current_tab(), "SELECT 1;")
+    window._confirm_unsaved_query = lambda _tab: False
+
+    class FakeEvent:
+        ignored = False
+
+        def ignore(self):
+            self.ignored = True
+
+        def accept(self):
+            raise AssertionError("Cancelled close must not be accepted")
+
+    event = FakeEvent()
+    window.closeEvent(event)
+
+    assert event.ignored is True
+    window._should_confirm_close_in_memory = lambda: False
+    window._confirm_unsaved_query = lambda _tab: True
+    window.close()
+
+
+def test_main_window_persists_and_deduplicates_query_history(qapp, tmp_path):
+    QSettings.setDefaultFormat(QSettings.Format.IniFormat)
+    QSettings.setPath(
+        QSettings.Format.IniFormat,
+        QSettings.Scope.UserScope,
+        str(tmp_path),
+    )
+    window = MainWindow()
+
+    window._record_query_history("SELECT 1;")
+    window._record_query_history("SELECT 2;")
+    window._record_query_history("SELECT 1;")
+
+    assert window.query_history[:2] == ["SELECT 1;", "SELECT 2;"]
+    window._should_confirm_close_in_memory = lambda: False
+    window.close()
+
+    reloaded = MainWindow()
+    assert reloaded.query_history[:2] == ["SELECT 1;", "SELECT 2;"]
+    reloaded._should_confirm_close_in_memory = lambda: False
+    reloaded.close()
+
+
+def test_main_window_query_history_menu_loads_sql_into_editor(qapp, tmp_path):
+    QSettings.setDefaultFormat(QSettings.Format.IniFormat)
+    QSettings.setPath(
+        QSettings.Format.IniFormat,
+        QSettings.Scope.UserScope,
+        str(tmp_path),
+    )
+    settings = QSettings(
+        QSettings.Format.IniFormat,
+        QSettings.Scope.UserScope,
+        "mrmatho",
+        "shoveler",
+    )
+    settings.clear()
+    settings.sync()
+
+    window = MainWindow()
+    assert window.query_history == []
+    window._record_query_history("SELECT 42;")
+    window._populate_query_history_menu()
+    actions = window.query_history_menu.actions()
+
+    assert len(actions) == 1
+    assert actions[0].data() == "SELECT 42;"
+    assert actions[0].toolTip() == "SELECT 42;"
+
+    actions[0].trigger()
+    assert window._current_tab().editor.toPlainText() == "SELECT 42;"
+    window._confirm_unsaved_query = lambda _tab: True
+    window._should_confirm_close_in_memory = lambda: False
+    window.close()
+
+
 def test_query_tab_show_result_forwards_column_types(qapp):
     tab = QueryTab()
     captured = {}
@@ -451,6 +604,41 @@ def test_database_status_widget_shows_short_file_path(qapp):
 
     assert path in widget.db_label.text()
     assert widget.db_label.toolTip() == path
+
+
+def test_schema_panel_filter_matches_tables_and_columns(qapp):
+    class FakeDatabase:
+        def get_tables(self):
+            return ["students", "teachers"]
+
+        def get_column_key_info(self, _table):
+            return {}
+
+        def get_columns(self, table):
+            if table == "students":
+                return [("student_id", "INTEGER"), ("name", "VARCHAR")]
+            return [("teacher_id", "INTEGER"), ("department", "VARCHAR")]
+
+    panel = SchemaPanel()
+    panel.refresh(FakeDatabase())
+    students = panel.tree.topLevelItem(0)
+    teachers = panel.tree.topLevelItem(1)
+
+    panel.search.setText("NAME")
+
+    assert students.isHidden() is False
+    assert students.child(0).isHidden() is True
+    assert students.child(1).isHidden() is False
+    assert teachers.isHidden() is True
+
+    panel.search.setText("students")
+    assert students.isHidden() is False
+    assert students.child(0).isHidden() is False
+    assert students.child(1).isHidden() is False
+
+    panel.search.clear()
+    assert students.isHidden() is False
+    assert teachers.isHidden() is False
 
 
 def test_main_window_persists_syntax_highlighting_setting(qapp, tmp_path):
@@ -708,6 +896,7 @@ def test_main_window_insert_file_name_inserts_into_editor(qapp):
 
     assert tab.editor.toPlainText() == "students.csv"
 
+    tab.editor.document().setModified(False)
     window.close()
 
 
@@ -923,7 +1112,8 @@ def test_main_window_run_query_error_sets_error_status(qapp, monkeypatch):
 def test_main_window_close_last_tab_keeps_single_tab_and_clears_editor(qapp):
     window = MainWindow()
     tab = window._current_tab()
-    tab.editor.setPlainText("SELECT 1;")
+    edit_query(tab, "SELECT 1;")
+    window._confirm_unsaved_query = lambda _tab: True
 
     window._close_tab(0)
 

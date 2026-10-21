@@ -35,6 +35,7 @@ from .config.text import (
 
 class QueryTab(QWidget):
     run_requested = Signal(str)  # emits SQL string to main window
+    modified_changed = Signal(bool)
     _MIN_FONT_SIZE = 8
     _MAX_FONT_SIZE = 36
 
@@ -102,6 +103,7 @@ class QueryTab(QWidget):
         splitter = QSplitter(Qt.Orientation.Vertical)
 
         self.editor = SqlEditor()
+        self.editor.document().modificationChanged.connect(self.modified_changed)
         self.editor.set_syntax_highlighting_enabled(syntax_highlighting_enabled)
         self.set_editor_font_size(editor_font_size)
         self.editor.run_requested.connect(self._on_run)
@@ -150,10 +152,13 @@ class QueryTab(QWidget):
         return True
 
     def _export_sql(self):
+        self.save_sql_dialog()
+
+    def save_sql_dialog(self) -> bool:
         sql = self.editor.toPlainText()
         if not sql.strip():
             QMessageBox.information(self, QUERYTAB_EXPORT_EMPTY_TITLE, QUERYTAB_EXPORT_EMPTY_MESSAGE)
-            return
+            return False
 
         path, _ = QFileDialog.getSaveFileName(
             self,
@@ -162,16 +167,26 @@ class QueryTab(QWidget):
             QUERYTAB_EXPORT_DIALOG_FILTER,
         )
         if not path:
-            return
+            return False
 
         if not os.path.splitext(path)[1]:
             path += ".sql"
 
+        return self.save_sql_to_path(path)
+
+    def save_sql_to_path(self, path: str) -> bool:
         try:
             with open(path, "w", encoding="utf-8", newline="\n") as f:
-                f.write(sql)
-        except Exception as e:
+                f.write(self.editor.toPlainText())
+        except (OSError, UnicodeError) as e:
             QMessageBox.critical(self, QUERYTAB_EXPORT_FAILED, str(e))
+            return False
+        self.editor.document().setModified(False)
+        return True
+
+    @property
+    def is_modified(self) -> bool:
+        return self.editor.document().isModified()
 
     def show_result(self, result: QueryResult):
         if result["error"]:
