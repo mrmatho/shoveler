@@ -60,11 +60,15 @@ developers. See the [developer guide](DEVELOPMENT.md).
   - Editor: `Ctrl+=`, `Ctrl+-`, `Ctrl+0`
   - Results: `Ctrl+Shift+=`, `Ctrl+Shift+-`, `Ctrl+Shift+0`
 
-## Documentation
+## User documentation
 
-More user documentation is available in the `docs/` folder:
+The [Shoveler user documentation](docs/index.md) is the starting point for the
+documentation website, published from the `docs/` folder. It is written for
+students, teachers, and self-learners:
 
-- [Docs Home](docs/index.md)
-- [Quickstart (10 minutes)](docs/quickstart.md)
-- [Core Concepts](docs/concepts.md)
-- [Troubleshooting](docs/troubleshooting.md)
+- [Quickstart](docs/quickstart.md) walks through installing Shoveler, opening
+  or creating a database, running SQL, and saving or exporting your work.
+- [Core Concepts](docs/concepts.md) explains database modes, query behavior,
+  schema and results panels, shortcuts, and themes.
+- [Troubleshooting](docs/troubleshooting.md) covers common setup, query, and
+  database issues.
