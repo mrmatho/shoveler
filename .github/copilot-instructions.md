@@ -6,6 +6,7 @@ Project summary
 - Runtime architecture is thin UI widgets over a single Database service class.
 
 How to run and validate
+- Verify that uv is installed, install if not. 
 - Install and sync deps with: uv sync
 - Run app with: uv run python -m shoveler
 - Run tests with: uv run pytest
