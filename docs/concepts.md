@@ -39,11 +39,20 @@ Shoveler follows this rule:
 
 This helps students test one statement at a time without deleting other work.
 
+## Query history and unsaved SQL
+
+Shoveler keeps the 25 most recently run SQL statements in **File > Query History**.
+Choosing an entry loads it into the current editor; run it with the usual shortcut or button.
+
+An asterisk on a query tab means its SQL has unsaved edits. Closing the tab, closing Shoveler,
+or loading a history entry asks whether to save the SQL, discard the changes, or cancel.
+
 ## Schema panel
 
 The schema panel shows tables and columns from the active database.
 
 - It refreshes after query execution when connected.
+- Use the filter above the tree to find table names, column names, or column types.
 - Double-clicking a table inserts its name into the current editor.
 
 ## Results table

@@ -28,6 +28,7 @@ from .config.text import (
     SCHEMA_HEADING,
     SCHEMA_NO_FILES,
     SCHEMA_REFRESH_FILES,
+    SCHEMA_SEARCH_PLACEHOLDER,
     SCHEMA_SELECT_WORKING_DIRECTORY,
     schema_table_insert_tooltip,
 )
@@ -87,6 +88,12 @@ class SchemaPanel(QWidget):
         self.tree.header().setDefaultSectionSize(100)
         self.tree.itemDoubleClicked.connect(self._on_double_click)
         schema_layout.addWidget(self.tree)
+
+        self.search = QLineEdit()
+        self.search.setPlaceholderText(SCHEMA_SEARCH_PLACEHOLDER)
+        self.search.setClearButtonEnabled(True)
+        self.search.textChanged.connect(self._apply_schema_filter)
+        schema_layout.insertWidget(1, self.search)
 
         self._empty_label = QLabel(SCHEMA_EMPTY)
         self._empty_label.setStyleSheet("font-size: 11px; padding: 8px;")
@@ -245,6 +252,7 @@ class SchemaPanel(QWidget):
             self.tree.addTopLevelItem(table_item)
             table_item.setExpanded(True)
 
+        self._apply_schema_filter(self.search.text())
         self.tree.resizeColumnToContents(0)
 
     def clear(self):
@@ -254,6 +262,24 @@ class SchemaPanel(QWidget):
     def _show_empty(self, show: bool):
         self.tree.setVisible(not show)
         self._empty_label.setVisible(show)
+
+    def _apply_schema_filter(self, text: str):
+        query = text.strip().casefold()
+        for index in range(self.tree.topLevelItemCount()):
+            table_item = self.tree.topLevelItem(index)
+            table_matches = not query or query in table_item.text(0).casefold()
+            matching_column = False
+            for column_index in range(table_item.childCount()):
+                column_item = table_item.child(column_index)
+                column_matches = (
+                    not query
+                    or table_matches
+                    or query in column_item.text(0).casefold()
+                    or query in column_item.text(1).casefold()
+                )
+                column_item.setHidden(not column_matches)
+                matching_column = matching_column or column_matches
+            table_item.setHidden(not (table_matches or matching_column))
 
     def _on_double_click(self, item: QTreeWidgetItem, column: int):
         if item.data(0, Qt.ItemDataRole.UserRole) == "table":

@@ -9,6 +9,7 @@ from PySide6.QtWidgets import (
     QPushButton,
     QMessageBox,
     QFileDialog,
+    QMenu,
 )
 from PySide6.QtGui import QAction, QActionGroup
 from PySide6.QtCore import QSettings, Qt
@@ -23,6 +24,7 @@ from .config.text import (
     ACTION_EDITOR_ZOOM_RESET,
     ACTION_NEW_QUERY_TAB,
     ACTION_OPEN_SQL,
+    ACTION_QUERY_HISTORY_EMPTY,
     ACTION_RESULTS_ZOOM_IN,
     ACTION_RESULTS_ZOOM_OUT,
     ACTION_RESULTS_ZOOM_RESET,
@@ -33,6 +35,7 @@ from .config.text import (
     ACTION_THEME_VIVID,
     CHECKPOINT_FAILED_TITLE,
     MENU_FILE,
+    MENU_QUERY_HISTORY,
     MENU_THEME,
     MENU_VIEW,
     MENU_ZOOM,
@@ -51,6 +54,9 @@ from .config.text import (
     UNSAVED_MEMORY_INFO,
     UNSAVED_MEMORY_TEXT,
     UNSAVED_MEMORY_TITLE,
+    QUERYTAB_UNSAVED_INFO,
+    QUERYTAB_UNSAVED_TEXT,
+    QUERYTAB_UNSAVED_TITLE,
     WINDOW_TITLE_BASE,
     status_opened,
     status_query_error,
@@ -74,6 +80,8 @@ class MainWindow(QMainWindow):
     _RESULTS_FONT_SIZE_KEY = "results/font_size"
     _THEME_KEY = "ui/theme"
     _WORKING_DIRECTORY_KEY = "files/working_directory"
+    _QUERY_HISTORY_KEY = "queries/history"
+    _QUERY_HISTORY_LIMIT = 25
     _DEFAULT_EDITOR_FONT_SIZE = 11
     _DEFAULT_RESULTS_FONT_SIZE = 12
     _MIN_FONT_SIZE = 8
@@ -104,6 +112,7 @@ class MainWindow(QMainWindow):
             self._MAX_FONT_SIZE,
         )
         self.theme = self._read_theme_setting()
+        self.query_history = self._read_query_history()
         self.setWindowTitle(WINDOW_TITLE_BASE)
         self.resize(1200, 720)
 
@@ -172,6 +181,9 @@ class MainWindow(QMainWindow):
         self.open_sql_action.setShortcut("Ctrl+O")
         self.open_sql_action.triggered.connect(self._open_sql_file)
         file_menu.addAction(self.open_sql_action)
+
+        self.query_history_menu = file_menu.addMenu(MENU_QUERY_HISTORY)
+        self.query_history_menu.aboutToShow.connect(self._populate_query_history_menu)
 
         self.save_as_action = QAction(ACTION_SAVE_DATABASE_AS, self)
         self.save_as_action.setShortcut("Ctrl+Shift+S")
@@ -382,17 +394,35 @@ class MainWindow(QMainWindow):
         tab.set_theme(self.theme)
         tab.run_requested.connect(self._run_query)
         idx = self.tab_widget.addTab(tab, tab_title(n))
+        tab.modified_changed.connect(
+            lambda modified, query_tab=tab: self._update_tab_title(query_tab, modified)
+        )
         self.tab_widget.setCurrentIndex(idx)
         self._refresh_completion_metadata()
         return tab
 
     def _close_tab(self, index: int):
+        tab: QueryTab = self.tab_widget.widget(index)
+        if not self._confirm_unsaved_query(tab):
+            return
         if self.tab_widget.count() == 1:
             # Always keep at least one tab; just clear its contents
-            tab: QueryTab = self.tab_widget.widget(0)
             tab.editor.clear()
+            tab.editor.document().setModified(False)
             return
         self.tab_widget.removeTab(index)
+        self._renumber_tabs()
+
+    def _update_tab_title(self, tab: QueryTab, modified: bool):
+        index = self.tab_widget.indexOf(tab)
+        if index >= 0:
+            title = tab_title(index + 1)
+            self.tab_widget.setTabText(index, f"{title}{' *' if modified else ''}")
+
+    def _renumber_tabs(self):
+        for index in range(self.tab_widget.count()):
+            tab = self.tab_widget.widget(index)
+            self._update_tab_title(tab, tab.is_modified)
 
     def _current_tab(self) -> QueryTab | None:
         return self.tab_widget.currentWidget()
@@ -400,6 +430,8 @@ class MainWindow(QMainWindow):
     # ── Query execution ─────────────────────────────────────────────────────
 
     def _run_query(self, sql: str):
+        if sql.strip():
+            self._record_query_history(sql.strip())
         result = self.db.execute(sql)
         tab = self._current_tab()
         if tab:
@@ -413,6 +445,68 @@ class MainWindow(QMainWindow):
         else:
             rows = len(result["rows"])
             self.statusBar().showMessage(status_query_ok(rows, result["elapsed"]), 4000)
+
+    def _read_query_history(self) -> list[str]:
+        history = self.settings.value(self._QUERY_HISTORY_KEY, [])
+        if not isinstance(history, list):
+            return []
+        return [query for query in history if isinstance(query, str) and query.strip()][
+            : self._QUERY_HISTORY_LIMIT
+        ]
+
+    def _record_query_history(self, sql: str):
+        self.query_history = [sql, *(query for query in self.query_history if query != sql)][
+            : self._QUERY_HISTORY_LIMIT
+        ]
+        self.settings.setValue(self._QUERY_HISTORY_KEY, self.query_history)
+        self.settings.sync()
+
+    def _populate_query_history_menu(self):
+        self.query_history_menu.clear()
+        if not self.query_history:
+            empty_action = self.query_history_menu.addAction(ACTION_QUERY_HISTORY_EMPTY)
+            empty_action.setEnabled(False)
+            return
+
+        for sql in self.query_history:
+            label = " ".join(sql.split())
+            if len(label) > 80:
+                label = f"{label[:77]}..."
+            action = self.query_history_menu.addAction(label)
+            action.setToolTip(sql)
+            action.setData(sql)
+            action.triggered.connect(
+                lambda checked=False, selected_action=action: self._load_history_query(
+                    selected_action.data()
+                )
+            )
+
+    def _load_history_query(self, sql: str):
+        tab = self._current_tab()
+        if not tab or not self._confirm_unsaved_query(tab):
+            return
+        tab.editor.setPlainText(sql)
+        tab.editor.setFocus()
+
+    def _confirm_unsaved_query(self, tab: QueryTab) -> bool:
+        if not tab.is_modified:
+            return True
+
+        box = QMessageBox(self)
+        box.setIcon(QMessageBox.Icon.Warning)
+        box.setWindowTitle(QUERYTAB_UNSAVED_TITLE)
+        box.setText(QUERYTAB_UNSAVED_TEXT)
+        box.setInformativeText(QUERYTAB_UNSAVED_INFO)
+        box.setStandardButtons(
+            QMessageBox.StandardButton.Save
+            | QMessageBox.StandardButton.Discard
+            | QMessageBox.StandardButton.Cancel
+        )
+        box.setDefaultButton(QMessageBox.StandardButton.Save)
+        choice = QMessageBox.StandardButton(box.exec())
+        if choice == QMessageBox.StandardButton.Save:
+            return tab.save_sql_dialog()
+        return choice == QMessageBox.StandardButton.Discard
 
     # ── Database actions ────────────────────────────────────────────────────
 
@@ -564,6 +658,12 @@ class MainWindow(QMainWindow):
     # ── Cleanup ─────────────────────────────────────────────────────────────
 
     def closeEvent(self, event):
+        for index in range(self.tab_widget.count()):
+            tab = self.tab_widget.widget(index)
+            if isinstance(tab, QueryTab) and not self._confirm_unsaved_query(tab):
+                event.ignore()
+                return
+
         if self._should_confirm_close_in_memory():
             choice = self._confirm_close_in_memory()
             if choice == QMessageBox.StandardButton.Cancel:
