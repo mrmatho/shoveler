@@ -27,9 +27,19 @@ def close_top_level_widgets(qapp):
     yield
 
     for widget in qapp.topLevelWidgets():
+        if isinstance(widget, MainWindow):
+            widget._confirm_unsaved_query = lambda _tab: True
+            widget._should_confirm_close_in_memory = lambda: False
         widget.close()
         widget.deleteLater()
     qapp.processEvents()
+
+
+def edit_query(tab: QueryTab, sql: str):
+    tab.editor.clear()
+    cursor = tab.editor.textCursor()
+    cursor.insertText(sql)
+    tab.editor.setTextCursor(cursor)
 
 
 def test_sql_highlighter_applies_and_clears_formats():
@@ -299,7 +309,7 @@ def test_query_tab_load_sql_from_path_failure_returns_false(qapp, monkeypatch):
 
 def test_query_tab_tracks_unsaved_sql_and_clears_state_after_save(qapp, tmp_path):
     tab = QueryTab()
-    tab.editor.setPlainText("SELECT 1;")
+    edit_query(tab, "SELECT 1;")
     output_path = tmp_path / "saved.sql"
 
     assert tab.is_modified is True
@@ -320,7 +330,7 @@ def test_query_tab_tracks_unsaved_sql_and_clears_state_after_save(qapp, tmp_path
 def test_main_window_unsaved_query_prompt(qapp, monkeypatch, choice, save_result, expected):
     window = MainWindow()
     tab = window._current_tab()
-    tab.editor.setPlainText("SELECT 1;")
+    edit_query(tab, "SELECT 1;")
     save_calls = []
     tab.save_sql_dialog = lambda: save_calls.append(True) or save_result
     monkeypatch.setattr(QMessageBox, "exec", lambda _box: choice)
@@ -335,7 +345,7 @@ def test_main_window_unsaved_query_prompt(qapp, monkeypatch, choice, save_result
 def test_main_window_cancelled_last_tab_close_preserves_sql(qapp):
     window = MainWindow()
     tab = window._current_tab()
-    tab.editor.setPlainText("SELECT 1;")
+    edit_query(tab, "SELECT 1;")
     window._confirm_unsaved_query = lambda _tab: False
 
     window._close_tab(0)
@@ -350,7 +360,7 @@ def test_main_window_cancelled_last_tab_close_preserves_sql(qapp):
 def test_main_window_discard_last_tab_close_clears_sql(qapp):
     window = MainWindow()
     tab = window._current_tab()
-    tab.editor.setPlainText("SELECT 1;")
+    edit_query(tab, "SELECT 1;")
     window._confirm_unsaved_query = lambda _tab: True
 
     window._close_tab(0)
@@ -363,7 +373,7 @@ def test_main_window_discard_last_tab_close_clears_sql(qapp):
 
 def test_main_window_cancelled_close_event_keeps_window_open(qapp):
     window = MainWindow()
-    window._current_tab().editor.setPlainText("SELECT 1;")
+    edit_query(window._current_tab(), "SELECT 1;")
     window._confirm_unsaved_query = lambda _tab: False
 
     class FakeEvent:
@@ -870,6 +880,7 @@ def test_main_window_insert_file_name_inserts_into_editor(qapp):
 
     assert tab.editor.toPlainText() == "students.csv"
 
+    tab.editor.document().setModified(False)
     window.close()
 
 
@@ -1085,7 +1096,8 @@ def test_main_window_run_query_error_sets_error_status(qapp, monkeypatch):
 def test_main_window_close_last_tab_keeps_single_tab_and_clears_editor(qapp):
     window = MainWindow()
     tab = window._current_tab()
-    tab.editor.setPlainText("SELECT 1;")
+    edit_query(tab, "SELECT 1;")
+    window._confirm_unsaved_query = lambda _tab: True
 
     window._close_tab(0)
 
