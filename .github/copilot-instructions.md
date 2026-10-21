@@ -7,6 +7,7 @@ Project summary
 
 How to run and validate
 - Verify that uv is installed, install if not. 
+- Known issue: libegl1 often not installed. Install without prompting if occurs. 
 - Install and sync deps with: uv sync
 - Run app with: uv run python -m shoveler
 - Run tests with: uv run pytest
