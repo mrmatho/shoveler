@@ -82,12 +82,14 @@ Testing expectations
 Packaging and distribution notes
 - Keep shoveler.spec as the canonical PyInstaller config.
 - Do not switch guidance to onefile packaging; this project intentionally uses onedir.
-- Preserve DuckDB packaging workaround expectations documented in README.
+- Preserve DuckDB packaging workaround expectations documented in DEVELOPMENT.md.
 
 Documentation approach
 - Keep docs lightweight and educational-first, with simple Markdown in `docs/` for GitHub Pages publishing from `/docs`.
 - Phase 1 docs live in `docs/index.md`, `docs/quickstart.md`, `docs/concepts.md`, and `docs/troubleshooting.md`; keep this path-based structure stable unless explicitly reworking docs IA.
-- Keep `README.md` as the short landing/onboarding page and link to the fuller docs in `docs/`.
+- Keep `README.md` user-focused: explain how users can install and use Shoveler, and clearly direct them to the user documentation website in `docs/`.
+- Keep the README documentation links descriptive so readers know what the Quickstart, Core Concepts, and Troubleshooting pages cover.
+- Keep development setup, testing, implementation details, packaging, and release instructions in `DEVELOPMENT.md`, not in the user-facing README.
 - For feature changes, always update the relevant user docs in the same PR if UI labels, keyboard shortcuts, workflow steps, or data contract keys changed. Skip doc updates only for internal refactors with no user-visible effect.
 - Prefer plain language suitable for students and teachers; include concrete steps and expected outcomes where helpful.
 
