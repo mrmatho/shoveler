@@ -417,8 +417,24 @@ def test_main_window_persists_and_deduplicates_query_history(qapp, tmp_path):
     reloaded.close()
 
 
-def test_main_window_query_history_menu_loads_sql_into_editor(qapp):
+def test_main_window_query_history_menu_loads_sql_into_editor(qapp, tmp_path):
+    QSettings.setDefaultFormat(QSettings.Format.IniFormat)
+    QSettings.setPath(
+        QSettings.Format.IniFormat,
+        QSettings.Scope.UserScope,
+        str(tmp_path),
+    )
+    settings = QSettings(
+        QSettings.Format.IniFormat,
+        QSettings.Scope.UserScope,
+        "mrmatho",
+        "shoveler",
+    )
+    settings.clear()
+    settings.sync()
+
     window = MainWindow()
+    assert window.query_history == []
     window._record_query_history("SELECT 42;")
     window._populate_query_history_menu()
     actions = window.query_history_menu.actions()
