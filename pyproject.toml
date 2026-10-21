@@ -12,7 +12,7 @@ license = { text = "MIT" }
 keywords = ["duckdb", "sql", "workbench", "education"]
 dependencies = [
     "PySide6>=6.6",
-    "duckdb>=0.10",
+    "duckdb>=1.0",
     "pytz>=2024.1",
 ]
 
