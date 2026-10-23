@@ -40,12 +40,25 @@ class ResultsHeaderView(QHeaderView):
     def __init__(self, orientation, parent=None):
         super().__init__(orientation, parent)
         self._column_types: list[str] = []
+        self._sort_column = -1
+        self._sort_order = Qt.SortOrder.AscendingOrder
         self._theme = "light"
         self.setMouseTracking(True)
 
     def set_theme(self, theme: str):
         self._theme = (theme or "").strip().lower()
         self.viewport().update()
+
+    def set_sort_indicator_state(self, column: int, order: Qt.SortOrder):
+        self._sort_column = column
+        self._sort_order = order
+        self.viewport().update()
+        self.updateGeometry()
+
+    def sort_arrow_for_section(self, logical_index: int) -> str:
+        if logical_index != self._sort_column:
+            return ""
+        return " ▲" if self._sort_order == Qt.SortOrder.AscendingOrder else " ▼"
 
     def set_column_types(self, column_types: list[str]):
         self._column_types = list(column_types)
@@ -67,7 +80,9 @@ class ResultsHeaderView(QHeaderView):
         size = super().sectionSizeFromContents(logical_index)
         column_name = self.model().headerData(logical_index, self.orientation(), Qt.ItemDataRole.DisplayRole)
         header_metrics = QFontMetrics(self.font())
-        header_width = header_metrics.horizontalAdvance(str(column_name)) + 16
+        header_width = header_metrics.horizontalAdvance(
+            str(column_name) + self.sort_arrow_for_section(logical_index)
+        ) + 16
         badge_text = self.badge_text_for_section(logical_index)
         if not badge_text:
             return QSize(max(size.width(), header_width), max(size.height(), header_metrics.height() + 10))
@@ -115,7 +130,7 @@ class ResultsHeaderView(QHeaderView):
         painter.drawText(
             text_rect,
             Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft,
-            QFontMetrics(self.font()).elidedText(str(column_name), Qt.TextElideMode.ElideRight, text_rect.width()),
+            QFontMetrics(self.font()).elidedText(str(column_name) + self.sort_arrow_for_section(logical_index), Qt.TextElideMode.ElideRight, text_rect.width()),
         )
         painter.restore()
 
@@ -257,7 +272,10 @@ class ResultsPanel(QWidget):
         self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self._header.setStretchLastSection(True)
         self._header.setSectionsClickable(True)
-        self.table.setSortingEnabled(True)
+        self._header.setSortIndicatorShown(False)
+        self._header.sectionClicked.connect(self._on_header_clicked)
+        self._sort_column = -1
+        self._sort_order = Qt.SortOrder.AscendingOrder
         layout.addWidget(self.table)
         self.set_font_point_size(self._DEFAULT_FONT_SIZE)
         self.set_theme("light")
@@ -299,6 +317,7 @@ class ResultsPanel(QWidget):
         if column_types is None:
             column_types = self._infer_column_types(rows, len(columns))
         self._header.set_column_types(column_types)
+        self._reset_sort_state()
         self._populate_table(columns, rows)
         self._apply_filter(self.filter_input.text())
         word = "row" if len(rows) == 1 else "rows"
@@ -331,7 +350,6 @@ class ResultsPanel(QWidget):
         self.status_label.setStyleSheet(f"color: {colour};")
 
     def _populate_table(self, columns: list, rows: list):
-        self.table.setSortingEnabled(False)
         self.table.setColumnCount(len(columns))
         self.table.setRowCount(len(rows))
         self.table.setHorizontalHeaderLabels(columns)
@@ -344,8 +362,27 @@ class ResultsPanel(QWidget):
                 if val is None:
                     item.setForeground(QColor(self._null_colour))
                 self.table.setItem(r, c, item)
-        self.table.setSortingEnabled(True)
         self.table.resizeColumnsToContents()
+
+    def _reset_sort_state(self):
+        self._sort_column = -1
+        self._sort_order = Qt.SortOrder.AscendingOrder
+        self._header.set_sort_indicator_state(-1, self._sort_order)
+
+    def _on_header_clicked(self, column: int):
+        """Cycle sort: ascending -> descending -> original order."""
+        if column != self._sort_column:
+            self._sort_column = column
+            self._sort_order = Qt.SortOrder.AscendingOrder
+        elif self._sort_order == Qt.SortOrder.AscendingOrder:
+            self._sort_order = Qt.SortOrder.DescendingOrder
+        else:
+            self._reset_sort_state()
+            self._populate_table(self._last_columns, self._last_rows)
+            self._apply_filter(self.filter_input.text())
+            return
+        self._header.set_sort_indicator_state(self._sort_column, self._sort_order)
+        self.table.sortItems(self._sort_column, self._sort_order)
 
     def _apply_filter(self, text: str):
         query = text.strip().casefold()
