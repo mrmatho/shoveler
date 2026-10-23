@@ -75,6 +75,8 @@ Use File > Save Database As... to persist an in-memory database to disk.
 
 Run a query, then use the results export menu to save CSV output.
 
+Click a column header to sort the results table (an arrow ▲/▼ shows the direction). Click again for descending, and a third time to return to the original order, and type in the **Filter results...** box to show only rows containing that text. Sorting and filtering only change what you see; export always uses the original query results in their original order ("Selected" exports the rows you highlighted).
+
 ## 8) Export your SQL
 
 Use the **Export SQL** button in the query tab toolbar to save your editor content as a `.sql` file.
