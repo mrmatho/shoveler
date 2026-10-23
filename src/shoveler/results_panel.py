@@ -11,6 +11,7 @@ from PySide6.QtWidgets import (
     QTableWidgetItem,
     QLabel,
     QPushButton,
+    QLineEdit,
     QMenu,
     QFileDialog,
     QHeaderView,
@@ -30,6 +31,7 @@ from .config.text import (
     RESULTS_STATUS_EMPTY,
     RESULTS_EXPORT_SELECTED_CLIPBOARD,
     RESULTS_EXPORT_SELECTED_CSV,
+    RESULTS_FILTER_PLACEHOLDER,
 )
 from .config.ui import get_results_null_colour, get_results_status_colours
 
@@ -173,6 +175,35 @@ class ResultsHeaderView(QHeaderView):
         return "#1f2937"
 
 
+_SOURCE_ROW_ROLE = Qt.ItemDataRole.UserRole + 1
+
+
+class ResultsItem(QTableWidgetItem):
+    """Table cell that sorts by its underlying value (NULLs last-ish, numbers numerically)."""
+
+    def __init__(self, text: str, value=None):
+        super().__init__(text)
+        self._value = value
+
+    def _sort_key(self):
+        value = self._value
+        if value is None:
+            return (0, 0, "")
+        if isinstance(value, bool):
+            return (1, int(value), "")
+        if isinstance(value, (int, float, Decimal)):
+            return (1, value, "")
+        return (2, 0, str(value).casefold())
+
+    def __lt__(self, other):
+        if isinstance(other, ResultsItem):
+            try:
+                return self._sort_key() < other._sort_key()
+            except TypeError:
+                return self.text() < other.text()
+        return super().__lt__(other)
+
+
 class ResultsPanel(QWidget):
     _DEFAULT_FONT_SIZE = 12
 
@@ -203,6 +234,13 @@ class ResultsPanel(QWidget):
         status_layout.addWidget(self.status_label)
         status_layout.addStretch()
 
+        self.filter_input = QLineEdit()
+        self.filter_input.setPlaceholderText(RESULTS_FILTER_PLACEHOLDER)
+        self.filter_input.setClearButtonEnabled(True)
+        self.filter_input.setFixedWidth(200)
+        self.filter_input.textChanged.connect(self._apply_filter)
+        status_layout.addWidget(self.filter_input)
+
         self.export_btn = QPushButton(RESULTS_EXPORT_BUTTON)
         self.export_btn.setFixedWidth(120)
         self.export_btn.setEnabled(False)
@@ -218,6 +256,8 @@ class ResultsPanel(QWidget):
         self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self._header.setStretchLastSection(True)
+        self._header.setSectionsClickable(True)
+        self.table.setSortingEnabled(True)
         layout.addWidget(self.table)
         self.set_font_point_size(self._DEFAULT_FONT_SIZE)
         self.set_theme("light")
@@ -260,6 +300,7 @@ class ResultsPanel(QWidget):
             column_types = self._infer_column_types(rows, len(columns))
         self._header.set_column_types(column_types)
         self._populate_table(columns, rows)
+        self._apply_filter(self.filter_input.text())
         word = "row" if len(rows) == 1 else "rows"
         self._set_status(f"{len(rows)} {word}  ·  {elapsed * 1000:.1f} ms", "ok")
         self.export_btn.setEnabled(True)
@@ -290,18 +331,31 @@ class ResultsPanel(QWidget):
         self.status_label.setStyleSheet(f"color: {colour};")
 
     def _populate_table(self, columns: list, rows: list):
+        self.table.setSortingEnabled(False)
         self.table.setColumnCount(len(columns))
         self.table.setRowCount(len(rows))
         self.table.setHorizontalHeaderLabels(columns)
         for r, row in enumerate(rows):
             for c, val in enumerate(row):
                 text = "NULL" if val is None else str(val)
-                item = QTableWidgetItem(text)
+                item = ResultsItem(text, val)
+                item.setData(_SOURCE_ROW_ROLE, r)
                 item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
                 if val is None:
                     item.setForeground(QColor(self._null_colour))
                 self.table.setItem(r, c, item)
+        self.table.setSortingEnabled(True)
         self.table.resizeColumnsToContents()
+
+    def _apply_filter(self, text: str):
+        query = text.strip().casefold()
+        for r in range(self.table.rowCount()):
+            visible = not query or any(
+                (item := self.table.item(r, c)) is not None
+                and query in item.text().casefold()
+                for c in range(self.table.columnCount())
+            )
+            self.table.setRowHidden(r, not visible)
 
     def _infer_column_types(self, rows: list[tuple], column_count: int) -> list[str]:
         if column_count == 0:
@@ -479,4 +533,9 @@ class ResultsPanel(QWidget):
         selection_model = self.table.selectionModel()
         if selection_model is None:
             return []
-        return sorted({index.row() for index in selection_model.selectedRows()})
+        indexes: set[int] = set()
+        for index in selection_model.selectedRows():
+            item = self.table.item(index.row(), 0)
+            if item is not None:
+                indexes.add(item.data(_SOURCE_ROW_ROLE))
+        return sorted(indexes)

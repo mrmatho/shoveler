@@ -38,6 +38,7 @@ EDITOR_PLACEHOLDER = (
 SCHEMA_HEADING = "Schema"
 SCHEMA_EMPTY = "Open a database\nto see its tables."
 SCHEMA_SEARCH_PLACEHOLDER = "Filter tables and columns..."
+RESULTS_FILTER_PLACEHOLDER = "Filter results..."
 SCHEMA_FILES_HEADING = "Working Directory Files"
 SCHEMA_CWD_PLACEHOLDER = "Current working directory"
 SCHEMA_CHANGE_DIR = "Change..."
