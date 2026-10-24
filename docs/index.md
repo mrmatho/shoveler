@@ -1,5 +1,7 @@
 # Shoveler Docs
 
+<img src="images/shoveler-icon.ico" alt="Shoveler app icon" width="96">
+
 Shoveler is a lightweight [DuckDB](https://duckdb.org) workbench built for learning and teaching SQL.
 
 ![Shoveler showing a SQL query, table schema, and query results](images/workbench-light.png)
