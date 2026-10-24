@@ -1,22 +1,29 @@
 # Quickstart (10 minutes)
 
-This guide gets you from clone to first query quickly.
+This guide gets you from installing Shoveler to your first query quickly.
 
 ## 1) Install and run
 
-Using UV:
+### Windows and Linux: download the desktop app
 
-```shell
-uv pip install shoveler
-uv run python -m shoveler
-```
+1. Open the [latest GitHub Release](https://github.com/mrmatho/shoveler/releases/latest).
+2. Download the Windows or Linux desktop package.
+3. Extract the package and launch Shoveler.
 
-Using pip:
+This is the recommended option for students, teachers, and most users. It does
+not require installing Python or other development tools.
+
+### macOS: install with pip
+
+The macOS desktop build is not signed or notarized, so install with pip instead:
 
 ```shell
 pip install shoveler
 python -m shoveler
 ```
+
+Building from source is intended for developers. See the
+[developer guide](../DEVELOPMENT.md).
 
 ## 2) Choose a database mode
 
