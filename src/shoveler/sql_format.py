@@ -31,6 +31,45 @@ KEYWORDS = frozenset(
     """.split()
 )
 
+FUNCTIONS = frozenset(
+    """
+    ABS AVG CEIL CEILING COALESCE CONCAT COUNT DATE_DIFF DATE_PART DATE_TRUNC DENSE_RANK
+    EXTRACT FIRST FIRST_VALUE FLOOR GREATEST IFNULL LAG LAST LAST_VALUE LEAD LEAST LENGTH
+    LIST LOWER LTRIM MAX MEDIAN MIN NOW NTILE NULLIF POWER RANK READ_CSV READ_CSV_AUTO
+    READ_JSON READ_PARQUET REGEXP_MATCHES REGEXP_REPLACE REPLACE ROUND ROW_NUMBER RTRIM
+    SQRT STDDEV STRFTIME STRING_AGG STRPTIME SUBSTR SUBSTRING SUM TRIM TRY_CAST UPPER
+    VARIANCE
+    """.split()
+)
+
+# Lists with more than this many items are placed one per line.
+MAX_INLINE_ITEMS = 3
+
+_LIST_STOPS = frozenset(
+    "FROM WHERE GROUP ORDER HAVING LIMIT OFFSET QUALIFY WINDOW UNION INTERSECT EXCEPT "
+    "JOIN LEFT RIGHT FULL INNER CROSS NATURAL SELECT".split()
+)
+
+
+def _list_item_count(tokens: list[tuple[str, str]], start: int) -> int:
+    """Count comma-separated items in the list clause beginning after tokens[start]."""
+    depth = 0
+    commas = 0
+    for kind, text in tokens[start + 1 :]:
+        if kind == "punct" and text == "(":
+            depth += 1
+        elif kind == "punct" and text == ")":
+            depth -= 1
+        elif depth == 0:
+            if kind == "punct" and text == ";":
+                break
+            if kind == "punct" and text == ",":
+                commas += 1
+            elif kind == "word" and text.upper() in _LIST_STOPS:
+                break
+    return commas + 1
+
+
 # Clause starters that begin a new line at the statement's base indent.
 _CLAUSES = ("SELECT", "FROM", "WHERE", "GROUP BY", "ORDER BY", "HAVING", "LIMIT",
             "OFFSET", "QUALIFY", "WINDOW", "VALUES", "SET", "UNION", "UNION ALL",
@@ -66,6 +105,7 @@ def _format_statement(tokens: list[tuple[str, str]]) -> str:
     in_list = False  # inside a top-level comma-separated list
     in_condition = False  # inside WHERE / HAVING / ON
     pending_between = False
+    split_list = False
     prev_kind, prev_text = "", ""
 
     def flush(indent: str = ""):
@@ -77,6 +117,13 @@ def _format_statement(tokens: list[tuple[str, str]]) -> str:
     upper_words = [t.upper() if k == "word" else "" for k, t in tokens]
     for i, (kind, text) in enumerate(tokens):
         if kind == "word" and text.upper() in KEYWORDS:
+            text = text.upper()
+        elif (
+            kind == "word"
+            and text.upper() in FUNCTIONS
+            and i + 1 < len(tokens)
+            and tokens[i + 1] == ("punct", "(")
+        ):
             text = text.upper()
         word = text if kind == "word" else ""
         nxt = upper_words[i + 1] if i + 1 < len(tokens) else ""
@@ -123,6 +170,9 @@ def _format_statement(tokens: list[tuple[str, str]]) -> str:
                 if is_join:
                     in_list = False
                 line += text
+                split_list = in_list and _list_item_count(tokens, i) > MAX_INLINE_ITEMS
+                if split_list:
+                    flush(INDENT)
                 prev_kind, prev_text = kind, text
                 continue
             if up == "BETWEEN":
@@ -141,7 +191,7 @@ def _format_statement(tokens: list[tuple[str, str]]) -> str:
             continue
         if kind == "punct" and text == ",":
             line = line.rstrip() + ","
-            if depth == 0 and in_list:
+            if depth == 0 and in_list and split_list:
                 flush(INDENT)
             prev_kind, prev_text = kind, text
             continue

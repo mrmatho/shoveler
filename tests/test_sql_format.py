@@ -3,7 +3,7 @@ from shoveler.sql_format import format_sql
 
 def test_keywords_uppercased_and_clauses_indented():
     out = format_sql("select a, b from t where a > 1 and b < 2 order by a")
-    assert out == "SELECT a,\n    b\nFROM t\nWHERE a > 1\n    AND b < 2\nORDER BY a"
+    assert out == "SELECT a, b\nFROM t\nWHERE a > 1\n    AND b < 2\nORDER BY a"
 
 
 def test_statements_separated_by_blank_line():
@@ -22,3 +22,21 @@ def test_between_and_not_split():
 
 def test_empty():
     assert format_sql("  ") == ""
+
+
+def test_short_column_list_stays_inline():
+    assert format_sql("select a, b, c from t") == "SELECT a, b, c\nFROM t"
+
+
+def test_long_column_list_one_per_line():
+    out = format_sql("select a, b, c, d from t")
+    assert out == "SELECT\n    a,\n    b,\n    c,\n    d\nFROM t"
+
+
+def test_function_names_uppercased():
+    out = format_sql("select count(*), sum(x) from t")
+    assert out == "SELECT COUNT(*), SUM(x)\nFROM t"
+
+
+def test_nested_commas_do_not_count():
+    assert format_sql("select coalesce(a, b, c, d) from t") == "SELECT COALESCE(a, b, c, d)\nFROM t"

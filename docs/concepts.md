@@ -81,7 +81,7 @@ The working directory area helps students find nearby files used in labs.
 
 ## Formatting SQL
 
-Click **Format SQL** (or press `Ctrl+Shift+F`) to tidy your query. Keywords become upper case, clauses such as `FROM` and `WHERE` go on their own indented lines, and each statement is separated by a blank line. If you highlight some SQL, only the highlighted text is formatted.
+Click **Format SQL** (or press `Ctrl+Shift+F`) to tidy your query. Keywords become upper case, clauses such as `FROM` and `WHERE` go on their own indented lines, and common function names such as `COUNT` become upper case, column lists with more than three items are put one per line, and each statement is separated by a blank line. If you highlight some SQL, only the highlighted text is formatted.
 
 ## Exporting SQL
 
