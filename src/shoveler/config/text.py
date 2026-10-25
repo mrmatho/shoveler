@@ -165,3 +165,9 @@ def status_working_directory_set(path: str) -> str:
 
 def schema_table_insert_tooltip(table_name: str) -> str:
     return f"Double-click to insert '{table_name}' into editor"
+
+QUERYTAB_FORMAT_SQL = "Format SQL"
+QUERYTAB_FORMAT_SQL_TOOLTIP = (
+    "Format SQL with indentation and upper-case keywords (Ctrl+Shift+F). "
+    "Formats the selection if there is one."
+)

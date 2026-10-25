@@ -77,6 +77,11 @@ The working directory area helps students find nearby files used in labs.
 - `F5`: Run query
 - `Ctrl+Enter`: Run query
 - `Ctrl+T`: New query tab
+- `Ctrl+Shift+F`: Format SQL
+
+## Formatting SQL
+
+Click **Format SQL** (or press `Ctrl+Shift+F`) to tidy your query. Keywords become upper case, clauses such as `FROM` and `WHERE` go on their own indented lines, and each statement is separated by a blank line. If you highlight some SQL, only the highlighted text is formatted.
 
 ## Exporting SQL
 

@@ -13,6 +13,7 @@ from PySide6.QtCore import Qt, Signal
 
 from .db import QueryResult
 from .editor import SqlEditor
+from .sql_format import format_sql
 from .results_panel import ResultsPanel
 from .config.text import (
     QUERYTAB_EXPORT_DEFAULT_NAME,
@@ -22,6 +23,8 @@ from .config.text import (
     QUERYTAB_EXPORT_EMPTY_TITLE,
     QUERYTAB_EXPORT_FAILED,
     QUERYTAB_EXPORT_SQL,
+    QUERYTAB_FORMAT_SQL,
+    QUERYTAB_FORMAT_SQL_TOOLTIP,
     QUERYTAB_EXPORT_SQL_TOOLTIP,
     QUERYTAB_LOAD_DIALOG_FILTER,
     QUERYTAB_LOAD_DIALOG_TITLE,
@@ -68,6 +71,13 @@ class QueryTab(QWidget):
         self.export_sql_btn.setToolTip(QUERYTAB_EXPORT_SQL_TOOLTIP)
         self.export_sql_btn.clicked.connect(self._export_sql)
         toolbar_layout.addWidget(self.export_sql_btn)
+
+        self.format_sql_btn = QPushButton(QUERYTAB_FORMAT_SQL)
+        self.format_sql_btn.setFixedWidth(100)
+        self.format_sql_btn.setShortcut("Ctrl+Shift+F")
+        self.format_sql_btn.setToolTip(QUERYTAB_FORMAT_SQL_TOOLTIP)
+        self.format_sql_btn.clicked.connect(self.format_sql)
+        toolbar_layout.addWidget(self.format_sql_btn)
 
         self.run_btn = QPushButton(QUERYTAB_RUN_QUERY)
         self.run_btn.setFixedWidth(120)
@@ -123,6 +133,16 @@ class QueryTab(QWidget):
         sql = self.editor.get_sql()
         if sql:
             self.run_requested.emit(sql)
+
+    def format_sql(self):
+        """Format the selected SQL, or the whole editor content if nothing is selected."""
+        cursor = self.editor.textCursor()
+        if cursor.hasSelection():
+            cursor.insertText(format_sql(cursor.selectedText().replace("\u2029", "\n")))
+        elif self.editor.toPlainText().strip():
+            cursor.select(cursor.SelectionType.Document)
+            cursor.insertText(format_sql(self.editor.toPlainText()))
+            self.editor.setTextCursor(cursor)
 
     def _load_sql(self):
         self.open_sql_file_dialog()
