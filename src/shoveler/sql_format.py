@@ -230,6 +230,34 @@ def _format_statement(tokens: list[tuple[str, str]]) -> str:
     return "\n".join(lines)
 
 
+def split_statement_spans(sql: str) -> list[tuple[int, int]]:
+    """Return (start, end) offsets of each non-empty statement in sql.
+
+    Semicolons inside strings, quoted names, and comments do not split. The end
+    offset excludes the terminating semicolon. Comment-only chunks are skipped.
+    """
+    spans: list[tuple[int, int]] = []
+    start: int | None = None
+    end = 0
+    for m in _TOKEN_RE.finditer(sql):
+        kind = m.lastgroup
+        if kind == "ws":
+            continue
+        if kind == "punct" and m.group() == ";":
+            if start is not None:
+                spans.append((start, end))
+            start = None
+            continue
+        if kind == "comment":
+            continue
+        if start is None:
+            start = m.start()
+        end = m.end()
+    if start is not None:
+        spans.append((start, end))
+    return spans
+
+
 def format_sql(sql: str) -> str:
     """Return sql with upper-case keywords, indentation, and blank lines between statements."""
     tokens = _tokenize(sql)

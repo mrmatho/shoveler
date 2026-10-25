@@ -30,6 +30,7 @@ from .config.text import (
     ACTION_RESULTS_ZOOM_RESET,
     ACTION_SAVE_DATABASE_AS,
     ACTION_SYNTAX_HIGHLIGHTING,
+    ACTION_HIGHLIGHT_INVALID_SQL,
     ACTION_THEME_DARK,
     ACTION_THEME_LIGHT,
     ACTION_THEME_VIVID,
@@ -65,6 +66,8 @@ from .config.text import (
     status_results_font_size,
     status_saved,
     status_syntax_highlighting,
+    status_invalid_sql,
+    status_highlight_invalid_sql,
     status_theme_set,
     status_working_directory_set,
     tab_title,
@@ -75,6 +78,7 @@ from .config.theme import DEFAULT_THEME, load_theme_stylesheet, normalize_theme
 
 
 class MainWindow(QMainWindow):
+    _VALIDATION_KEY = "editor/highlight_invalid_sql"
     _SYNTAX_HIGHLIGHTING_KEY = "editor/syntax_highlighting_enabled"
     _EDITOR_FONT_SIZE_KEY = "editor/font_size"
     _RESULTS_FONT_SIZE_KEY = "results/font_size"
@@ -99,6 +103,7 @@ class MainWindow(QMainWindow):
         self.syntax_highlighting_enabled = self._read_bool_setting(
             self._SYNTAX_HIGHLIGHTING_KEY, True
         )
+        self.validation_enabled = self._read_bool_setting(self._VALIDATION_KEY, True)
         self.editor_font_size = self._read_int_setting(
             self._EDITOR_FONT_SIZE_KEY,
             self._DEFAULT_EDITOR_FONT_SIZE,
@@ -200,6 +205,12 @@ class MainWindow(QMainWindow):
             self._set_syntax_highlighting_enabled
         )
         view_menu.addAction(self.syntax_highlighting_action)
+
+        self.validation_action = QAction(ACTION_HIGHLIGHT_INVALID_SQL, self)
+        self.validation_action.setCheckable(True)
+        self.validation_action.setChecked(self.validation_enabled)
+        self.validation_action.toggled.connect(self._set_validation_enabled)
+        view_menu.addAction(self.validation_action)
 
         zoom_menu = view_menu.addMenu(MENU_ZOOM)
 
@@ -382,6 +393,26 @@ class MainWindow(QMainWindow):
 
         self.statusBar().showMessage(status_results_font_size(self.results_font_size), 2000)
 
+    def _set_validation_enabled(self, enabled: bool):
+        self.validation_enabled = bool(enabled)
+        self.settings.setValue(self._VALIDATION_KEY, self.validation_enabled)
+        self.settings.sync()
+        for index in range(self.tab_widget.count()):
+            tab = self.tab_widget.widget(index)
+            if isinstance(tab, QueryTab):
+                tab.set_validation_enabled(self.validation_enabled)
+        state = "enabled" if self.validation_enabled else "disabled"
+        self.statusBar().showMessage(status_highlight_invalid_sql(state), 2000)
+
+    def _validate_tab(self, tab: QueryTab, sql: str):
+        try:
+            diagnostics = self.db.validate(sql)
+        except Exception:
+            diagnostics = []
+        tab.set_diagnostics(diagnostics)
+        if diagnostics and tab is self._current_tab():
+            self.statusBar().showMessage(status_invalid_sql(diagnostics[0]["message"]), 3000)
+
     # ── Tab management ──────────────────────────────────────────────────────
 
     def _add_tab(self) -> QueryTab:
@@ -393,6 +424,10 @@ class MainWindow(QMainWindow):
         )
         tab.set_theme(self.theme)
         tab.run_requested.connect(self._run_query)
+        tab.set_validation_enabled(self.validation_enabled)
+        tab.validation_requested.connect(
+            lambda sql, query_tab=tab: self._validate_tab(query_tab, sql)
+        )
         idx = self.tab_widget.addTab(tab, tab_title(n))
         tab.modified_changed.connect(
             lambda modified, query_tab=tab: self._update_tab_title(query_tab, modified)

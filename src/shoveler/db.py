@@ -1,7 +1,9 @@
 import duckdb
+import json
 import logging
 import os
 import time
+from .sql_format import split_statement_spans
 from typing import Literal, TypeAlias, TypedDict
 
 
@@ -15,6 +17,13 @@ class QueryResult(TypedDict):
     rows: list[QueryRow]
     elapsed: float
     error: str | None
+
+
+class SqlDiagnostic(TypedDict):
+    message: str
+    position: int
+    start: int
+    end: int
 
 
 class Database:
@@ -105,6 +114,58 @@ class Database:
         except Exception as e:
             elapsed = time.perf_counter() - start
             return self._build_result([], [], [], elapsed, str(e))
+
+    def validate(self, sql: str) -> list[SqlDiagnostic]:
+        """Return syntax errors without running anything; an empty list means valid.
+
+        Each diagnostic has exactly these keys: message, position, start, end.
+        All offsets are character offsets into sql. start/end span the offending
+        statement; position is where DuckDB reports the error (start if unknown).
+        Only parsing is checked, so unknown tables or columns are not reported.
+        """
+        diagnostics: list[SqlDiagnostic] = []
+        conn = self.conn or self._parser_connection()
+        if conn is None:
+            return diagnostics
+        for start, end in split_statement_spans(sql):
+            diagnostic = self._validate_statement(conn, sql[start:end], start, end)
+            if diagnostic:
+                diagnostics.append(diagnostic)
+        return diagnostics
+
+    _parser_conn = None
+
+    @classmethod
+    def _parser_connection(cls):
+        if cls._parser_conn is None:
+            try:
+                cls._parser_conn = duckdb.connect(":memory:")
+            except Exception:
+                logger.exception("Failed to create parser connection")
+        return cls._parser_conn
+
+    @staticmethod
+    def _validate_statement(conn, statement: str, start: int, end: int) -> SqlDiagnostic | None:
+        try:
+            raw = conn.execute("SELECT json_serialize_sql(?)", [statement]).fetchone()[0]
+            info = json.loads(raw)
+        except Exception:
+            logger.exception("Failed to validate SQL")
+            return None
+        # Non-SELECT statements report "not implemented" once parsed successfully.
+        if not info.get("error") or info.get("error_type") != "parser":
+            return None
+        try:
+            offset = int(info.get("position", 0))
+        except (TypeError, ValueError):
+            offset = 0
+        offset = max(0, min(offset, len(statement)))
+        return {
+            "message": str(info.get("error_message", "Syntax error")),
+            "position": start + offset,
+            "start": start,
+            "end": end,
+        }
 
     def get_tables(self) -> list[str]:
         if not self.conn:

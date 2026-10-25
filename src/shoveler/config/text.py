@@ -20,6 +20,7 @@ ACTION_OPEN_SQL = "Open SQL..."
 ACTION_SAVE_DATABASE_AS = "Save Database As..."
 ACTION_QUERY_HISTORY_EMPTY = "No recent queries"
 ACTION_SYNTAX_HIGHLIGHTING = "Syntax highlighting"
+ACTION_HIGHLIGHT_INVALID_SQL = "Highlight invalid SQL"
 ACTION_THEME_LIGHT = "Light"
 ACTION_THEME_DARK = "Dark"
 ACTION_THEME_VIVID = "Vivid"
@@ -124,6 +125,14 @@ def window_title_in_memory() -> str:
 
 def status_theme_set(theme: str) -> str:
     return f"Theme set to {theme}"
+
+
+def status_invalid_sql(message: str) -> str:
+    return f"Invalid SQL: {message}"
+
+
+def status_highlight_invalid_sql(state: str) -> str:
+    return f"Invalid SQL highlighting {state}"
 
 
 def status_syntax_highlighting(state: str) -> str:

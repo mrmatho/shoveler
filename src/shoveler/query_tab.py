@@ -39,6 +39,7 @@ from .config.text import (
 class QueryTab(QWidget):
     run_requested = Signal(str)  # emits SQL string to main window
     modified_changed = Signal(bool)
+    validation_requested = Signal(str)  # emits SQL to check once typing pauses
     _MIN_FONT_SIZE = 8
     _MAX_FONT_SIZE = 36
 
@@ -117,6 +118,7 @@ class QueryTab(QWidget):
         self.editor.set_syntax_highlighting_enabled(syntax_highlighting_enabled)
         self.set_editor_font_size(editor_font_size)
         self.editor.run_requested.connect(self._on_run)
+        self.editor.validation_requested.connect(self._on_validation_requested)
         splitter.addWidget(self.editor)
 
         self.results = ResultsPanel()
@@ -143,6 +145,15 @@ class QueryTab(QWidget):
             cursor.select(cursor.SelectionType.Document)
             cursor.insertText(format_sql(self.editor.toPlainText()))
             self.editor.setTextCursor(cursor)
+
+    def _on_validation_requested(self):
+        self.validation_requested.emit(self.editor.toPlainText())
+
+    def set_diagnostics(self, diagnostics: list[dict]):
+        self.editor.set_diagnostics(diagnostics)
+
+    def set_validation_enabled(self, enabled: bool):
+        self.editor.set_validation_enabled(enabled)
 
     def _load_sql(self):
         self.open_sql_file_dialog()

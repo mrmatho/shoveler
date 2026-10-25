@@ -257,3 +257,46 @@ def test_save_as_no_connection_raises():
     db = Database()
     with pytest.raises(RuntimeError, match="No database connected"):
         db.save_as("any.duckdb")
+
+
+# ── validate ────────────────────────────────────────────────────────────────
+
+def test_validate_valid_sql_returns_empty(db):
+    assert db.validate("SELECT 1; CREATE TABLE t (a INTEGER);") == []
+
+
+def test_validate_empty_and_comment_only(db):
+    assert db.validate("") == []
+    assert db.validate("-- just a comment") == []
+
+
+def test_validate_reports_syntax_error_position(db):
+    sql = "selec 1"
+    result = db.validate(sql)
+    assert len(result) == 1
+    assert set(result[0]) == {"message", "position", "start", "end"}
+    assert result[0]["position"] == 0
+    assert (result[0]["start"], result[0]["end"]) == (0, len(sql))
+
+
+def test_validate_only_flags_bad_statement(db):
+    sql = "SELECT 1;\nSELECT FROM FROM;\nSELECT 2"
+    result = db.validate(sql)
+    assert len(result) == 1
+    assert sql[result[0]["start"]:result[0]["end"]] == "SELECT FROM FROM"
+    assert result[0]["position"] > result[0]["start"]
+
+
+def test_validate_ignores_semicolon_in_string(db):
+    assert db.validate("SELECT 'a;b'") == []
+
+
+def test_validate_does_not_execute(db):
+    db.validate("CREATE TABLE should_not_exist (a INTEGER)")
+    assert "should_not_exist" not in db.get_tables()
+
+
+def test_validate_works_without_connection():
+    database = Database()
+    assert database.validate("SELECT 1") == []
+    assert len(database.validate("SELECT FROM FROM")) == 1
