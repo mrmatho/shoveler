@@ -3,7 +3,7 @@ import json
 import logging
 import os
 import time
-from .sql_format import split_statement_spans
+from .sql_format import find_delimiter_error, split_statement_spans
 from typing import Literal, TypeAlias, TypedDict
 
 
@@ -121,14 +121,23 @@ class Database:
         Each diagnostic has exactly these keys: message, position, start, end.
         All offsets are character offsets into sql. start/end span the offending
         statement; position is where DuckDB reports the error (start if unknown).
-        Only parsing is checked, so unknown tables or columns are not reported.
+        Unbalanced brackets and unclosed quotes are detected without DuckDB and point at
+        the opening delimiter. Only parsing is checked otherwise, so unknown tables or columns are not reported.
         """
         diagnostics: list[SqlDiagnostic] = []
         conn = self.conn or self._parser_connection()
-        if conn is None:
-            return diagnostics
         for start, end in split_statement_spans(sql):
-            diagnostic = self._validate_statement(conn, sql[start:end], start, end)
+            statement = sql[start:end]
+            delimiter_error = find_delimiter_error(statement)
+            if delimiter_error:
+                offset, message = delimiter_error
+                diagnostics.append(
+                    {"message": message, "position": start + offset, "start": start, "end": end}
+                )
+                continue
+            if conn is None:
+                continue
+            diagnostic = self._validate_statement(conn, statement, start, end)
             if diagnostic:
                 diagnostics.append(diagnostic)
         return diagnostics

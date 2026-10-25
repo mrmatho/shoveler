@@ -300,3 +300,28 @@ def test_validate_works_without_connection():
     database = Database()
     assert database.validate("SELECT 1") == []
     assert len(database.validate("SELECT FROM FROM")) == 1
+
+
+@pytest.mark.parametrize(
+    "sql, message, position",
+    [
+        ("SELECT (1 + 2", "Unclosed (", 7),
+        ("SELECT 1)", "Unmatched )", 8),
+        ("SELECT 'abc", "Unclosed string", 7),
+        ('SELECT "abc FROM t', "Unclosed quoted name", 7),
+        ("SELECT (1]", "Unmatched ]", 9),
+    ],
+)
+def test_validate_reports_unbalanced_delimiters(db, sql, message, position):
+    result = db.validate(sql)
+    assert len(result) == 1
+    assert result[0]["message"].startswith(message)
+    assert result[0]["position"] == position
+
+
+def test_validate_delimiter_check_ignores_escaped_quotes_and_comments(db):
+    assert db.validate("SELECT 'it''s', \"a\"\"b\" -- ( unclosed") == []
+
+
+def test_validate_delimiter_check_without_connection():
+    assert len(Database().validate("SELECT (1")) == 1

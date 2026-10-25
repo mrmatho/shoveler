@@ -87,6 +87,7 @@ Click **Format SQL** (or press `Ctrl+Shift+F`) to tidy your query. Keywords beco
 
 While you type, Shoveler asks DuckDB to check each statement (without running it). About half a second after you stop typing, a statement with a syntax error gets a red wavy underline at the problem, a red dot beside its line number, and the DuckDB message appears when you hover over it and in the status bar. Other statements in the script are not marked.
 
+- Unclosed quotes and unmatched brackets are flagged at the opening `'`, `"`, or `(`.
 - Only syntax is checked; a misspelled table or column name is only reported when you run the query.
 - Turn this off or on in **View > Highlight invalid SQL**.
 

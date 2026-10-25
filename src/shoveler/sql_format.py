@@ -258,6 +258,31 @@ def split_statement_spans(sql: str) -> list[tuple[int, int]]:
     return spans
 
 
+def find_delimiter_error(sql: str) -> tuple[int, str] | None:
+    """Return (offset, message) for the first unbalanced bracket or quote, else None."""
+    stack: list[tuple[str, int]] = []
+    pairs = {")": "(", "]": "["}
+    for m in _TOKEN_RE.finditer(sql):
+        kind, text = m.lastgroup, m.group()
+        if kind in ("string", "quoted"):
+            quote = text[0]
+            body = text[1:].replace(quote * 2, "")
+            if not body.endswith(quote):
+                what = "string" if kind == "string" else "quoted name"
+                return m.start(), f"Unclosed {what}: missing closing {quote}"
+        elif kind == "punct" and text in "([":
+            stack.append((text, m.start()))
+        elif kind == "punct" and text in pairs:
+            if not stack or stack[-1][0] != pairs[text]:
+                return m.start(), f"Unmatched {text}"
+            stack.pop()
+    if stack:
+        char, offset = stack[-1]
+        closer = ")" if char == "(" else "]"
+        return offset, f"Unclosed {char}: missing closing {closer}"
+    return None
+
+
 def format_sql(sql: str) -> str:
     """Return sql with upper-case keywords, indentation, and blank lines between statements."""
     tokens = _tokenize(sql)
