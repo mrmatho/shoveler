@@ -1250,3 +1250,14 @@ def test_query_tab_export_sql_write_failure_shows_error_dialog(qapp, monkeypatch
     assert len(calls) == 1
 
     tab.close()
+
+def test_results_columns_reserve_room_for_sort_arrow(qapp):
+    panel = ResultsPanel()
+    panel.show_results(["id"], [(1,), (2,)], 0.0, ["INTEGER"])
+    header = panel.table.horizontalHeader()
+    width_unsorted = header.sectionSizeFromContents(0).width()
+    arrow_width = header.fontMetrics().horizontalAdvance("id ▼")
+    badge_min = header.fontMetrics().horizontalAdvance("INTEGER")
+    assert width_unsorted >= arrow_width + badge_min
+    panel._on_header_clicked(0)
+    assert header.sectionSizeFromContents(0).width() == width_unsorted
