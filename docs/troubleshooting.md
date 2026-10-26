@@ -21,13 +21,13 @@ python -c "import importlib.metadata as m; print(m.version('shoveler'))"
 
 ## Query runs but no data appears
 
-1. Check the results panel for error messages.
+1. Check the **Messages** tab in the results panel. It opens automatically when a query fails, and the text can be selected and copied. Older messages appear in grey; the newest is at the top. It switches back to **Results** after a successful query.
 2. Confirm you are querying the expected table and database mode.
 3. If using in-memory mode, verify you did not restart without saving.
 
-![A failed query with its error displayed in the results panel](images/query-error.png)
+![A failed query with its error shown in the Messages tab](images/query-error.png)
 
-*When a query fails, Shoveler shows the error in the results panel.*
+*When a query fails, Shoveler opens the Messages tab and shows the full error.*
 
 ## Checkpoint button is disabled
 
