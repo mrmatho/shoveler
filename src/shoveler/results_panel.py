@@ -81,7 +81,7 @@ class ResultsHeaderView(QHeaderView):
         column_name = self.model().headerData(logical_index, self.orientation(), Qt.ItemDataRole.DisplayRole)
         header_metrics = QFontMetrics(self.font())
         header_width = header_metrics.horizontalAdvance(
-            str(column_name) + self.sort_arrow_for_section(logical_index)
+            str(column_name) + " ▼"  # always reserve room for the sort arrow
         ) + 16
         badge_text = self.badge_text_for_section(logical_index)
         if not badge_text:
