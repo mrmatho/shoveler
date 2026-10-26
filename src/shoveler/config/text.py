@@ -20,6 +20,7 @@ ACTION_OPEN_SQL = "Open SQL..."
 ACTION_SAVE_DATABASE_AS = "Save Database As..."
 ACTION_QUERY_HISTORY_EMPTY = "No recent queries"
 ACTION_SYNTAX_HIGHLIGHTING = "Syntax highlighting"
+ACTION_HIGHLIGHT_INVALID_SQL = "Highlight invalid SQL"
 ACTION_THEME_LIGHT = "Light"
 ACTION_THEME_DARK = "Dark"
 ACTION_THEME_VIVID = "Vivid"
@@ -126,6 +127,14 @@ def status_theme_set(theme: str) -> str:
     return f"Theme set to {theme}"
 
 
+def status_invalid_sql(message: str) -> str:
+    return f"Invalid SQL: {message}"
+
+
+def status_highlight_invalid_sql(state: str) -> str:
+    return f"Invalid SQL highlighting {state}"
+
+
 def status_syntax_highlighting(state: str) -> str:
     return f"Syntax highlighting {state}"
 
@@ -165,3 +174,9 @@ def status_working_directory_set(path: str) -> str:
 
 def schema_table_insert_tooltip(table_name: str) -> str:
     return f"Double-click to insert '{table_name}' into editor"
+
+QUERYTAB_FORMAT_SQL = "Format SQL"
+QUERYTAB_FORMAT_SQL_TOOLTIP = (
+    "Format SQL with indentation and upper-case keywords (Ctrl+Shift+F). "
+    "Formats the selection if there is one."
+)

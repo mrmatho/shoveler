@@ -1,14 +1,15 @@
-from PySide6.QtWidgets import QPlainTextEdit, QToolTip, QWidget
+from PySide6.QtWidgets import QPlainTextEdit, QTextEdit, QToolTip, QWidget
 from PySide6.QtGui import (
     QColor,
     QFont,
     QPainter,
     QSyntaxHighlighter,
+    QTextCursor,
     QTextCharFormat,
     QTextDocument,
 )
 from PySide6.QtCore import QRegularExpression, QRect, QSize, Signal, Qt
-from PySide6.QtCore import QTimer
+from PySide6.QtCore import QEvent, QTimer
 
 from .config.syntax import (
     SQL_FUNCTIONS,
@@ -129,7 +130,10 @@ class SqlHighlighter(QSyntaxHighlighter):
 
 class SqlEditor(QPlainTextEdit):
     run_requested = Signal()
+    validation_requested = Signal()
     _COMPLETION_HINT_DELAY_MS = 180
+    _VALIDATION_DELAY_MS = 500
+    _ERROR_COLORS = {"light": "#d32f2f", "dark": "#ff6b6b", "vivid": "#d32f2f"}
     _DEFAULT_FONT_SIZE = 11
 
     def __init__(self, parent=None):
@@ -158,6 +162,13 @@ class SqlEditor(QPlainTextEdit):
         self._completion_hint_timer.setSingleShot(True)
         self._completion_hint_timer.setInterval(self._COMPLETION_HINT_DELAY_MS)
         self._completion_hint_timer.timeout.connect(self._show_completion_hint)
+        self._diagnostics: list[dict] = []
+        self._validation_enabled = True
+        self._error_color = QColor(self._ERROR_COLORS["light"])
+        self._validation_timer = QTimer(self)
+        self._validation_timer.setSingleShot(True)
+        self._validation_timer.setInterval(self._VALIDATION_DELAY_MS)
+        self._validation_timer.timeout.connect(self.validation_requested)
         self.set_syntax_highlighting_enabled(True)
         self.blockCountChanged.connect(self._update_line_number_area_width)
         self.updateRequest.connect(self._update_line_number_area)
@@ -195,8 +206,79 @@ class SqlEditor(QPlainTextEdit):
         self._update_line_number_area_width(0)
         self.line_number_area.update()
 
+    def set_validation_enabled(self, enabled: bool):
+        self._validation_enabled = bool(enabled)
+        if self._validation_enabled:
+            self._validation_timer.start()
+        else:
+            self._validation_timer.stop()
+            self.set_diagnostics([])
+
+    def set_diagnostics(self, diagnostics: list[dict]):
+        """Underline errors; each item needs message, position, start, end offsets."""
+        self._diagnostics = list(diagnostics)
+        self._apply_diagnostics()
+
+    def diagnostics(self) -> list[dict]:
+        return list(self._diagnostics)
+
+    def _apply_diagnostics(self):
+        selections = []
+        length = len(self.toPlainText())
+        for item in self._diagnostics:
+            start = max(0, min(item["position"], length))
+            end = self._error_token_end(start, item["end"], length)
+            if end <= start:
+                start = max(0, start - 1)
+                end = min(length, max(end, start + 1))
+            cursor = QTextCursor(self.document())
+            cursor.setPosition(start)
+            cursor.setPosition(end, QTextCursor.MoveMode.KeepAnchor)
+            selection = QTextEdit.ExtraSelection()
+            selection.cursor = cursor
+            selection.format.setUnderlineStyle(QTextCharFormat.UnderlineStyle.WaveUnderline)
+            selection.format.setUnderlineColor(self._error_color)
+            selections.append(selection)
+        self.setExtraSelections(selections)
+        self.line_number_area.update()
+
+    def _error_token_end(self, start: int, limit: int, length: int) -> int:
+        text = self.toPlainText()
+        end = start
+        limit = min(limit, length)
+        while end < limit and (text[end].isalnum() or text[end] == "_"):
+            end += 1
+        if end == start and start < limit:
+            end = start + 1
+        return end
+
+    def _error_lines(self) -> set[int]:
+        lines = set()
+        for item in self._diagnostics:
+            block = self.document().findBlock(item["position"])
+            if block.isValid():
+                lines.add(block.blockNumber())
+        return lines
+
+    def _diagnostic_at(self, position: int) -> dict | None:
+        for item in self._diagnostics:
+            if item["start"] <= position <= item["end"]:
+                return item
+        return None
+
+    def event(self, event):
+        if event.type() == QEvent.Type.ToolTip and self._diagnostics:
+            cursor = self.cursorForPosition(self.viewport().mapFromGlobal(event.globalPos()))
+            item = self._diagnostic_at(cursor.position())
+            if item:
+                QToolTip.showText(event.globalPos(), item["message"], self)
+                return True
+        return super().event(event)
+
     def set_theme(self, theme: str):
         self._highlighter.set_theme(theme)
+        self._error_color = QColor(self._ERROR_COLORS.get(theme, self._ERROR_COLORS["light"]))
+        self._apply_diagnostics()
         palette = get_line_number_palette(theme)
         self._line_number_bg = QColor(palette["background"])
         self._line_number_fg = QColor(palette["foreground"])
@@ -252,10 +334,20 @@ class SqlEditor(QPlainTextEdit):
         top = round(self.blockBoundingGeometry(block).translated(self.contentOffset()).top())
         bottom = top + round(self.blockBoundingRect(block).height())
 
+        error_lines = self._error_lines()
         while block.isValid() and top <= event.rect().bottom():
             if block.isVisible() and bottom >= event.rect().top():
                 number = str(block_number + 1)
                 painter.setPen(self._line_number_fg)
+                if block_number in error_lines:
+                    painter.setPen(self._error_color)
+                    painter.setBrush(self._error_color)
+                    size = max(4, self.fontMetrics().height() // 3)
+                    painter.drawEllipse(
+                        3, top + (self.fontMetrics().height() - size) // 2, size, size
+                    )
+                    painter.setBrush(Qt.BrushStyle.NoBrush)
+                    painter.setPen(self._line_number_fg)
                 painter.drawText(
                     0,
                     top,
@@ -307,6 +399,12 @@ class SqlEditor(QPlainTextEdit):
         super().focusOutEvent(event)
 
     def _on_text_changed(self):
+        if self._diagnostics:
+            self._diagnostics = []
+            self.setExtraSelections([])
+            self.line_number_area.update()
+        if self._validation_enabled:
+            self._validation_timer.start()
         if not self._suspend_completion_tracking:
             self._invalidate_completion_cycle()
         self._queue_completion_hint()

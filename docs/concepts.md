@@ -77,6 +77,19 @@ The working directory area helps students find nearby files used in labs.
 - `F5`: Run query
 - `Ctrl+Enter`: Run query
 - `Ctrl+T`: New query tab
+- `Ctrl+Shift+F`: Format SQL
+
+## Formatting SQL
+
+Click **Format SQL** (or press `Ctrl+Shift+F`) to tidy your query. Keywords become upper case, clauses such as `FROM` and `WHERE` go on their own indented lines, and common function names such as `COUNT` become upper case, column lists with more than three items are put one per line, and each statement is separated by a blank line. If you highlight some SQL, only the highlighted text is formatted.
+
+## Invalid SQL highlighting
+
+While you type, Shoveler asks DuckDB to check each statement (without running it). About half a second after you stop typing, a statement with a syntax error gets a red wavy underline at the problem, a red dot beside its line number, and the DuckDB message appears when you hover over it and in the status bar. Other statements in the script are not marked.
+
+- Unclosed quotes and unmatched brackets are flagged at the opening `'`, `"`, or `(`.
+- Only syntax is checked; a misspelled table or column name is only reported when you run the query.
+- Turn this off or on in **View > Highlight invalid SQL**.
 
 ## Exporting SQL
 
