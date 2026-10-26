@@ -187,9 +187,6 @@ class MainWindow(QMainWindow):
         self.open_sql_action.triggered.connect(self._open_sql_file)
         file_menu.addAction(self.open_sql_action)
 
-        self.query_history_menu = file_menu.addMenu(MENU_QUERY_HISTORY)
-        self.query_history_menu.aboutToShow.connect(self._populate_query_history_menu)
-
         self.save_as_action = QAction(ACTION_SAVE_DATABASE_AS, self)
         self.save_as_action.setShortcut("Ctrl+Shift+S")
         self.save_as_action.setEnabled(False)
@@ -197,6 +194,9 @@ class MainWindow(QMainWindow):
         file_menu.addAction(self.save_as_action)
 
         view_menu = self.menuBar().addMenu(MENU_VIEW)
+
+        self.query_history_menu = self.menuBar().addMenu(MENU_QUERY_HISTORY)
+        self.query_history_menu.aboutToShow.connect(self._populate_query_history_menu)
 
         self.syntax_highlighting_action = QAction(ACTION_SYNTAX_HIGHLIGHTING, self)
         self.syntax_highlighting_action.setCheckable(True)

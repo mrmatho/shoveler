@@ -434,6 +434,11 @@ def test_main_window_query_history_menu_loads_sql_into_editor(qapp, tmp_path):
     settings.sync()
 
     window = MainWindow()
+    assert [action.text() for action in window.menuBar().actions()] == [
+        "&File",
+        "&View",
+        "Query History",
+    ]
     assert window.query_history == []
     window._record_query_history("SELECT 42;")
     window._populate_query_history_menu()
