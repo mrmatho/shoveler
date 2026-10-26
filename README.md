@@ -12,7 +12,7 @@ Named after the [Australasian shoveler](https://en.wikipedia.org/wiki/Australasi
 
 | File-backed database | Query error |
 | --- | --- |
-| ![Shoveler connected to a file-backed database](docs/images/file-backed.png) | ![Shoveler displaying a query error](docs/images/query-error.png) |
+| ![Shoveler connected to a file-backed database](docs/images/file-backed.png) | ![Shoveler showing a query error in the Messages tab](docs/images/query-error.png) |
 
 ## Recommended for students and teachers: download a binary
 

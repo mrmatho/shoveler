@@ -1,6 +1,7 @@
 import csv
 from datetime import date, datetime, time as time_type, timedelta
 from decimal import Decimal
+from html import escape
 
 from PySide6.QtWidgets import (
     QApplication,
@@ -8,6 +9,8 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QHBoxLayout,
     QTableWidget,
+    QTabWidget,
+    QTextEdit,
     QTableWidgetItem,
     QLabel,
     QPushButton,
@@ -276,7 +279,17 @@ class ResultsPanel(QWidget):
         self._header.sectionClicked.connect(self._on_header_clicked)
         self._sort_column = -1
         self._sort_order = Qt.SortOrder.AscendingOrder
-        layout.addWidget(self.table)
+
+        # ── Messages ────────────────────────────────────────────────────────
+        self._messages: list[tuple[str, str]] = []
+        self.messages_view = QTextEdit()
+        self.messages_view.setReadOnly(True)
+        self.messages_view.setLineWrapMode(QTextEdit.LineWrapMode.WidgetWidth)
+
+        self.tabs = QTabWidget()
+        self.tabs.addTab(self.table, "Results")
+        self.tabs.addTab(self.messages_view, "Messages")
+        layout.addWidget(self.tabs)
         self.set_font_point_size(self._DEFAULT_FONT_SIZE)
         self.set_theme("light")
 
@@ -285,6 +298,7 @@ class ResultsPanel(QWidget):
         self._null_colour = get_results_null_colour(self._theme)
         self._status_colours = get_results_status_colours(self._theme)
         self._header.set_theme(self._theme)
+        self._render_messages()
 
     def font_point_size(self) -> int:
         return self._font_point_size
@@ -301,6 +315,7 @@ class ResultsPanel(QWidget):
         status_font = QFont(self.status_label.font())
         status_font.setPointSize(max(8, point_size - 1))
         self.status_label.setFont(status_font)
+        self.messages_view.setFont(table_font)
 
         row_height = max(22, int(QFontMetrics(table_font).height() * 1.6))
         self.table.verticalHeader().setDefaultSectionSize(row_height)
@@ -321,7 +336,10 @@ class ResultsPanel(QWidget):
         self._populate_table(columns, rows)
         self._apply_filter(self.filter_input.text())
         word = "row" if len(rows) == 1 else "rows"
-        self._set_status(f"{len(rows)} {word}  ·  {elapsed * 1000:.1f} ms", "ok")
+        text = f"{len(rows)} {word}  ·  {elapsed * 1000:.1f} ms"
+        self._set_status(text, "ok")
+        self._add_message(text, "ok")
+        self.tabs.setCurrentWidget(self.table)
         self.export_btn.setEnabled(True)
 
     def show_error(self, error: str, elapsed: float):
@@ -330,7 +348,9 @@ class ResultsPanel(QWidget):
         self._header.set_column_types([])
         self.table.setRowCount(0)
         self.table.setColumnCount(0)
-        self._set_status(f"Error  ·  {error}", "error")
+        self._set_status("Error  ·  see Messages tab", "error")
+        self._add_message(f"Error  ·  {error}", "error")
+        self.tabs.setCurrentWidget(self.messages_view)
         self.export_btn.setEnabled(False)
 
     def show_success_no_results(self, elapsed: float):
@@ -339,7 +359,10 @@ class ResultsPanel(QWidget):
         self._header.set_column_types([])
         self.table.setRowCount(0)
         self.table.setColumnCount(0)
-        self._set_status(f"OK  ·  {elapsed * 1000:.1f} ms", "ok")
+        text = f"OK  ·  {elapsed * 1000:.1f} ms"
+        self._set_status(text, "ok")
+        self._add_message(text, "ok")
+        self.tabs.setCurrentWidget(self.table)
         self.export_btn.setEnabled(False)
 
     # ── Internals ───────────────────────────────────────────────────────────
@@ -348,6 +371,25 @@ class ResultsPanel(QWidget):
         colour = self._status_colours.get(kind, self._status_colours["neutral"])
         self.status_label.setText(text)
         self.status_label.setStyleSheet(f"color: {colour};")
+
+    _MAX_MESSAGES = 200
+
+    def _add_message(self, text: str, kind: str):
+        self._messages.append((text, kind))
+        del self._messages[: -self._MAX_MESSAGES]
+        self._render_messages()
+
+    def _render_messages(self):
+        # Only the newest message keeps its status colour; older ones are neutral.
+        neutral = self._status_colours["neutral"]
+        parts = []
+        last = len(self._messages) - 1
+        for index, (text, kind) in enumerate(self._messages):
+            colour = self._status_colours.get(kind, neutral) if index == last else neutral
+            body = escape(text).replace("\n", "<br>")
+            parts.append(f'<p style="color:{colour}; white-space:pre-wrap;">{body}</p>')
+        self.messages_view.setHtml("".join(reversed(parts)))
+        self.messages_view.moveCursor(self.messages_view.textCursor().MoveOperation.Start)
 
     def _populate_table(self, columns: list, rows: list):
         self.table.setColumnCount(len(columns))
