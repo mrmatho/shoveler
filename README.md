@@ -18,7 +18,7 @@ Named after the [Australasian shoveler](https://en.wikipedia.org/wiki/Australasi
 
 Most classroom users should use the prebuilt desktop app from GitHub Releases instead of cloning or installing with pip.
 
-1. Open the repo's **Releases** page.
+1. Open the repo's [**Releases**](https://github.com/mrmatho/shoveler/releases) page.
 2. Download the latest desktop package for your platform.
 3. Extract it and run the app.
 
