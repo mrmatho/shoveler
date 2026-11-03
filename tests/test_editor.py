@@ -42,6 +42,21 @@ def edit_query(tab: QueryTab, sql: str):
     tab.editor.setTextCursor(cursor)
 
 
+def test_query_tab_run_button_executes_multiline_selection(qapp):
+    tab = QueryTab()
+    tab.editor.setPlainText("SELECT 1;\nSELECT 2;")
+    cursor = tab.editor.textCursor()
+    cursor.setPosition(0)
+    cursor.setPosition(len("SELECT 1;\nSELECT 2;"), QTextCursor.MoveMode.KeepAnchor)
+    tab.editor.setTextCursor(cursor)
+    executed = []
+    tab.run_requested.connect(executed.append)
+
+    tab.run_btn.click()
+
+    assert executed == ["SELECT 1;\nSELECT 2;"]
+
+
 def test_sql_highlighter_applies_and_clears_formats():
     document = QTextDocument()
     document.setPlainText("SELECT COUNT(*) FROM students -- comment")

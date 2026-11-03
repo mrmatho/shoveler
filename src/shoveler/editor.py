@@ -417,7 +417,7 @@ class SqlEditor(QPlainTextEdit):
     def get_sql(self) -> str:
         cursor = self.textCursor()
         if cursor.hasSelection():
-            return cursor.selectedText()
+            return cursor.selectedText().replace("\u2029", "\n")
         return self.toPlainText().strip()
 
     @staticmethod
