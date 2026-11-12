@@ -33,6 +33,8 @@ When the app opens, choose one:
 - New Blank DB: Start an in-memory database for experiments.
 
 *Tip: In-memory databases are temporary until you save them.*
+If your in-memory database contains tables, opening a DB file first asks you
+to save it, discard it, or cancel the switch.
 
 ## 3) Run your first SQL
 

@@ -812,6 +812,77 @@ def test_status_inline_save_button_hidden_in_file_mode(qapp, tmp_path):
     window.close()
 
 
+@pytest.mark.parametrize(
+    ("choice", "save_result"),
+    [
+        (QMessageBox.StandardButton.Cancel, None),
+        (QMessageBox.StandardButton.Save, False),
+    ],
+)
+def test_open_file_with_tables_cancel_or_failed_save_keeps_memory(
+    qapp, tmp_path, monkeypatch, choice, save_result
+):
+    window = MainWindow()
+    window.db.execute("CREATE TABLE t AS SELECT 42 AS x")
+    calls = []
+    monkeypatch.setattr(window, "_confirm_close_in_memory", lambda: calls.append("confirm") or choice)
+    monkeypatch.setattr(window, "_save_database_as", lambda: calls.append("save") or save_result)
+    path = tmp_path / "target.duckdb"
+
+    window._open_file(str(path))
+
+    assert calls == (["confirm", "save"] if save_result is False else ["confirm"])
+    assert window.db.mode == "memory"
+    assert window.db.execute("SELECT * FROM t")["rows"] == [(42,)]
+    assert "In-memory" in window.db_status.db_label.text()
+    assert not path.exists()
+
+
+@pytest.mark.parametrize("choice", [QMessageBox.StandardButton.Save, QMessageBox.StandardButton.Discard])
+def test_open_file_with_tables_save_or_discard_opens_target(qapp, tmp_path, monkeypatch, choice):
+    window = MainWindow()
+    window.db.execute("CREATE TABLE t AS SELECT 42 AS x")
+    calls = []
+    monkeypatch.setattr(window, "_confirm_close_in_memory", lambda: calls.append("confirm") or choice)
+    saved_path = tmp_path / "saved.duckdb"
+    monkeypatch.setattr(
+        "shoveler.main_window.QFileDialog.getSaveFileName",
+        lambda *args: (str(saved_path), ""),
+    )
+    target_path = tmp_path / "target.duckdb"
+
+    window._open_file(str(target_path))
+
+    assert calls == ["confirm"]
+    assert window.db.mode == "file"
+    assert window.db.path == str(target_path)
+    assert window.db.get_tables() == []
+    assert window.db_status.save_inline_btn.isHidden()
+    if choice == QMessageBox.StandardButton.Save:
+        from shoveler.db import Database
+
+        saved = Database()
+        saved.open_file(str(saved_path))
+        assert saved.execute("SELECT * FROM t")["rows"] == [(42,)]
+        saved.close()
+    else:
+        assert not saved_path.exists()
+
+
+def test_open_file_without_populated_memory_skips_confirmation(qapp, tmp_path, monkeypatch):
+    window = MainWindow()
+    monkeypatch.setattr(
+        window, "_confirm_close_in_memory", lambda: pytest.fail("Unexpected confirmation")
+    )
+
+    window._open_file(str(tmp_path / "first.duckdb"))
+    window.db.execute("CREATE TABLE t (x INTEGER)")
+    window._open_file(str(tmp_path / "second.duckdb"))
+
+    assert window.db.mode == "file"
+    assert window.db.path == str(tmp_path / "second.duckdb")
+
+
 def test_main_window_close_in_memory_cancel_keeps_window_open(qapp):
     window = MainWindow()
     window.db.execute("CREATE TABLE t (x INTEGER)")
