@@ -555,6 +555,13 @@ class MainWindow(QMainWindow):
 
     def _open_file(self, path: str):
         try:
+            if self._should_confirm_close_in_memory():
+                choice = self._confirm_close_in_memory()
+                if choice == QMessageBox.StandardButton.Cancel:
+                    return
+                if choice == QMessageBox.StandardButton.Save and not self._save_database_as():
+                    return
+
             self.db.open_file(path)
             self.db_status.set_file_mode(path)
             self.schema_panel.refresh(self.db)
