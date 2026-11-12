@@ -6,6 +6,7 @@ No display required — db.py has no PySide6 imports.
 import datetime
 import logging
 
+import duckdb
 import pytest
 from shoveler.db import Database
 
@@ -40,6 +41,68 @@ def test_open_file_sets_mode(tmp_path):
     assert db.mode == "file"
     assert db.path == path
     assert db.is_connected
+    db.close()
+
+
+@pytest.mark.parametrize("mode", ["memory", "file"])
+def test_open_file_failure_preserves_existing_connection(tmp_path, mode):
+    db = Database()
+    path = str(tmp_path / "existing.duckdb") if mode == "file" else None
+    if path:
+        db.open_file(path)
+    else:
+        db.new_memory()
+    db.execute("CREATE TABLE t AS SELECT 42 AS value")
+    original_conn = db.conn
+
+    with pytest.raises(duckdb.Error):
+        db.open_file(str(tmp_path))
+
+    assert db.conn is original_conn
+    assert db.is_connected
+    assert db.mode == mode
+    assert db.path == path
+    assert db.get_tables() == ["t"]
+    assert db.execute("SELECT value FROM t")["rows"] == [(42,)]
+    db.close()
+
+
+def test_open_file_failure_without_connection_preserves_disconnected_state(tmp_path):
+    db = Database()
+
+    with pytest.raises(duckdb.Error):
+        db.open_file(str(tmp_path))
+
+    assert not db.is_connected
+    assert db.mode is None
+    assert db.path is None
+
+
+def test_open_file_success_replaces_and_closes_existing_connection(db_with_table, tmp_path):
+    original_conn = db_with_table.conn
+    path = str(tmp_path / "replacement.duckdb")
+
+    db_with_table.open_file(path)
+
+    assert db_with_table.conn is not original_conn
+    assert db_with_table.mode == "file"
+    assert db_with_table.path == path
+    assert db_with_table.get_tables() == []
+    with pytest.raises(duckdb.Error):
+        original_conn.execute("SELECT 1")
+
+
+def test_open_file_reopens_current_file(tmp_path):
+    db = Database()
+    path = str(tmp_path / "existing.duckdb")
+    db.open_file(path)
+    db.execute("CREATE TABLE t AS SELECT 42 AS value")
+
+    db.open_file(path)
+
+    assert db.mode == "file"
+    assert db.path == path
+    assert db.execute("SELECT value FROM t")["rows"] == [(42,)]
     db.close()
 
 

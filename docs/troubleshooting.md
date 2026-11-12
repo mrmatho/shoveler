@@ -45,6 +45,8 @@ Use Change... in the working directory section to set a new directory.
 
 ## Open DB file fails
 
+If opening a database fails, the current database stays open.
+
 1. Confirm the file path exists and you have read/write access.
 2. Try opening the file outside synced cloud folders if file locking is suspected.
 3. Retry with a new test database to isolate whether the file is corrupted.
