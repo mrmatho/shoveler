@@ -54,7 +54,7 @@ developers. See the [developer guide](DEVELOPMENT.md).
 - **File > Query History** — load a recent query into the current editor
 - Modified query tabs are marked with `*`; closing or replacing one offers Save, Discard, or Cancel
 - Filter schema tables and columns with the search field above the schema tree
-- Double-click a table name in the schema panel to insert it into the editor
+- Double-click a table name in the schema panel to insert it as a quoted SQL identifier
 - **View > Syntax highlighting** — toggle SQL highlighting on or off; enabled by default and remembered between launches
 - **View > Zoom** — increase, decrease, or reset font size for the editor and results panel
   - Editor: `Ctrl+=`, `Ctrl+-`, `Ctrl+0`

@@ -908,6 +908,37 @@ def test_main_window_new_tab_action_uses_ctrl_t(qapp):
     window.close()
 
 
+@pytest.mark.parametrize(
+    ("table_name", "quoted_name"),
+    [
+        ("students", '"students"'),
+        ("order details", '"order details"'),
+        ('a "quoted" table', '"a ""quoted"" table"'),
+        ("select", '"select"'),
+    ],
+)
+def test_schema_table_double_click_inserts_queryable_identifier(qapp, table_name, quoted_name):
+    window = MainWindow()
+    assert window.db.execute(f"CREATE TABLE {quoted_name} (id INTEGER)")["error"] is None
+    window.schema_panel.refresh(window.db)
+    first_tab = window._current_tab()
+    tab = window._add_tab()
+    tab.editor.setPlainText("SELECT * FROM ")
+    tab.editor.moveCursor(QTextCursor.MoveOperation.End)
+    item = window.schema_panel.tree.topLevelItem(0)
+    assert item.text(0) == table_name
+
+    window.schema_panel.tree.itemDoubleClicked.emit(item, 0)
+
+    assert first_tab.editor.toPlainText() == ""
+    assert tab.editor.toPlainText() == f"SELECT * FROM {quoted_name}"
+    assert window.db.execute(tab.editor.toPlainText())["error"] is None
+
+    tab.editor.document().setModified(False)
+    window.db.close()
+    window.close()
+
+
 def test_main_window_insert_file_name_inserts_into_editor(qapp):
     window = MainWindow()
     tab = window._current_tab()

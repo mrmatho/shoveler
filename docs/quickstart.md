@@ -72,7 +72,7 @@ Run it with:
 ## 5) Explore schema and insert table names
 
 1. Look at the schema panel for `students`.
-2. Double-click `students` to insert its name into the editor.
+2. Double-click `students` to insert `"students"` into the editor.
 
 ## 6) Save your work (if in-memory)
 

@@ -641,7 +641,8 @@ class MainWindow(QMainWindow):
     def _insert_table_name(self, table_name: str):
         tab = self._current_tab()
         if tab:
-            tab.editor.insertPlainText(table_name)
+            escaped_name = table_name.replace('"', '""')
+            tab.editor.insertPlainText(f'"{escaped_name}"')
             tab.editor.setFocus()
 
     def _insert_file_name(self, file_name: str):
