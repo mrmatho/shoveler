@@ -1231,6 +1231,36 @@ def test_main_window_open_file_failure_shows_error_dialog(qapp, monkeypatch):
     window.close()
 
 
+@pytest.mark.parametrize("mode", ["memory", "file"])
+def test_main_window_open_file_failure_keeps_database_and_ui(qapp, monkeypatch, tmp_path, mode):
+    window = MainWindow()
+    if mode == "file":
+        window._open_file(str(tmp_path / "existing.duckdb"))
+    window._run_query("CREATE TABLE retained AS SELECT 42 AS value")
+    original_conn = window.db.conn
+    label = window.db_status.db_label.text()
+    tooltip = window.db_status.db_label.toolTip()
+    title = window.windowTitle()
+    status = window.statusBar().currentMessage()
+    calls = []
+    monkeypatch.setattr(QMessageBox, "critical", lambda *args: calls.append(args))
+
+    window._open_file(str(tmp_path))
+
+    assert len(calls) == 1
+    assert window.db.conn is original_conn
+    assert window.db.mode == mode
+    assert window.db.execute("SELECT value FROM retained")["rows"] == [(42,)]
+    assert window.db_status.db_label.text() == label
+    assert window.db_status.db_label.toolTip() == tooltip
+    assert window.db_status.checkpoint_btn.isEnabled() == (mode == "file")
+    assert window.windowTitle() == title
+    assert window.statusBar().currentMessage() == status
+    assert window.schema_panel.tree.topLevelItem(0).text(0) == "retained"
+    window._should_confirm_close_in_memory = lambda: False
+    window.close()
+
+
 def test_main_window_save_database_as_no_connection_shows_info(qapp, monkeypatch):
     window = MainWindow()
     calls = []

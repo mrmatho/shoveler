@@ -33,8 +33,9 @@ class Database:
         self.path: str | None = None
 
     def open_file(self, path: str):
+        conn = duckdb.connect(path)
         self._close_existing()
-        self.conn = duckdb.connect(path)
+        self.conn = conn
         self.mode = "file"
         self.path = path
 
