@@ -1,4 +1,6 @@
-from shoveler.sql_format import format_sql
+import pytest
+
+from shoveler.sql_format import find_delimiter_error, format_sql, split_statement_spans
 
 
 def test_keywords_uppercased_and_clauses_indented():
@@ -14,6 +16,41 @@ def test_statements_separated_by_blank_line():
 def test_strings_and_identifiers_untouched():
     out = format_sql("select 'from; where', \"select\" from t")
     assert "'from; where'" in out and '"select"' in out
+
+
+@pytest.mark.parametrize(
+    "literal",
+    [
+        "$$hello$$",
+        "$$a;b ([)] -- /* ' \"\nwhere$$",
+        "$tag$a; $other$ ( ] $TAG$ b$tag$",
+        "$_tag1$from, select$_tag1$",
+        "$💡$a;b$💡$",
+        "$$$$",
+    ],
+)
+def test_dollar_quoted_literals_are_preserved(literal):
+    sql = f"select {literal}; select 2;"
+    assert format_sql(sql) == f"SELECT {literal};\n\nSELECT 2;"
+    assert [sql[start:end] for start, end in split_statement_spans(sql)] == [
+        f"select {literal}",
+        "select 2",
+    ]
+    assert find_delimiter_error(sql) is None
+
+
+@pytest.mark.parametrize("literal", ["$$unclosed; (", "$tag$unclosed; ] $TAG$"])
+def test_unclosed_dollar_quoted_literal(literal):
+    sql = f"SELECT {literal}"
+    assert split_statement_spans(sql) == [(0, len(sql))]
+    assert find_delimiter_error(sql) == (7, f"Unclosed string: missing closing {literal[:literal.index('$', 1) + 1]}")
+    assert format_sql(sql) == sql
+
+
+def test_dollars_in_identifiers_and_parameters_are_not_dollar_quotes():
+    sql = "select column$$name, $value from t;"
+    assert format_sql(sql) == "SELECT column$$name, $ value\nFROM t;"
+    assert find_delimiter_error(sql) is None
 
 
 def test_between_and_not_split():

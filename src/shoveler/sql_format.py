@@ -9,6 +9,7 @@ _TOKEN_RE = re.compile(
     (?P<ws>\s+)
     |(?P<comment>--[^\n]*|/\*.*?(?:\*/|\Z))
     |(?P<string>'(?:[^']|'')*(?:'|\Z))
+    |(?P<dollar_string>(?P<dollar_delimiter>\$(?:[A-Za-z_\x80-\U0010ffff][A-Za-z_0-9\x80-\U0010ffff]*)?\$).*?(?:(?P=dollar_delimiter)|\Z))
     |(?P<quoted>"(?:[^"]|"")*(?:"|\Z))
     |(?P<word>[A-Za-z_][A-Za-z0-9_$]*)
     |(?P<number>\d+(?:\.\d+)?)
@@ -264,7 +265,11 @@ def find_delimiter_error(sql: str) -> tuple[int, str] | None:
     pairs = {")": "(", "]": "["}
     for m in _TOKEN_RE.finditer(sql):
         kind, text = m.lastgroup, m.group()
-        if kind in ("string", "quoted"):
+        if kind == "dollar_string":
+            delimiter = m.group("dollar_delimiter")
+            if len(text) < 2 * len(delimiter) or not text.endswith(delimiter):
+                return m.start(), f"Unclosed string: missing closing {delimiter}"
+        elif kind in ("string", "quoted"):
             quote = text[0]
             body = text[1:].replace(quote * 2, "")
             if not body.endswith(quote):

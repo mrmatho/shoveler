@@ -291,6 +291,30 @@ def test_validate_ignores_semicolon_in_string(db):
     assert db.validate("SELECT 'a;b'") == []
 
 
+@pytest.mark.parametrize(
+    "literal,value",
+    [
+        ("$$hello$$", "hello"),
+        ("$$a;b ([)]$$", "a;b ([)]"),
+        ("$tag$a; ( $TAG$ ]\nb$tag$", "a; ( $TAG$ ]\nb"),
+        ("$💡$a;b$💡$", "a;b"),
+        ("$$$$", ""),
+    ],
+)
+def test_validate_and_execute_dollar_quoted_strings(db, literal, value):
+    sql = f"SELECT {literal}; SELECT 2;"
+    assert db.validate(sql) == []
+    assert db.conn.execute(f"SELECT {literal}").fetchone() == (value,)
+
+
+def test_validate_reports_unclosed_dollar_quoted_string(db):
+    sql = "SELECT $tag$a; ( $TAG$"
+    result = db.validate(sql)
+    assert len(result) == 1
+    assert result[0]["message"] == "Unclosed string: missing closing $tag$"
+    assert (result[0]["position"], result[0]["start"], result[0]["end"]) == (7, 0, len(sql))
+
+
 def test_validate_does_not_execute(db):
     db.validate("CREATE TABLE should_not_exist (a INTEGER)")
     assert "should_not_exist" not in db.get_tables()
