@@ -53,7 +53,8 @@ The schema panel shows tables and columns from the active database.
 
 - It refreshes after query execution when connected.
 - Use the filter above the tree to find table names, column names, or column types.
-- Double-clicking a table inserts its name into the current editor.
+- Double-clicking a table inserts its name as a double-quoted SQL identifier into
+  the current editor, including names with spaces or double quotes.
 
 ## Results table
 
